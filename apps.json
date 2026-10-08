@@ -1,0 +1,17 @@
+{
+  "sim": "FlightSimulator2024.exe",
+  "apps": [
+    {
+      "name": "Example App",
+      "path": "C:/REPLACE/WITH/YOUR/PATH/ExampleApp.exe",
+      "delay": 0,
+      "closeOnExit": true
+    },
+    {
+      "name": "Example App (starts later)",
+      "path": "C:/REPLACE/WITH/YOUR/PATH/AnotherApp.exe",
+      "delay": 20,
+      "closeOnExit": true
+    }
+  ]
+}
