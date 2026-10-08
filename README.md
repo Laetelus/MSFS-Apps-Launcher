@@ -57,11 +57,18 @@ Per app:
 | `process` | exe file name | Process name to close. Set this if the exe you launch starts a different process and quits. |
 | `args` | none | List of command-line arguments, for example `["--flag"]`. |
 
+## Build the exe
+
+1. **Install Python** from the official site: <https://www.python.org/downloads/>. On the first screen of the installer, **tick "Add python.exe to PATH"** before clicking Install. If you skip this, the build will not find Python. (If you already installed Python without it, run the installer again and choose Modify, or reinstall.)
+2. **Double-click `build.bat`.** It checks for Python, installs the build tool (PyInstaller), and builds the exe.
+3. When it finishes, the exe is in `dist\MSFSLauncher\`. Keep the `_internal` folder next to `MSFSLauncher.exe`, and point exe.xml at that exe (see Setup).
+
+Built and tested with Python 3.12. The launcher itself uses only the standard library.
+
 ## Things to know
 
-- **You will get a UAC prompt each time the sim starts.** The launcher runs as administrator so it can close apps that run as administrator. Click Yes. It starts itself; you never need to open it.
 - **Editing `apps.json` does not require rebuilding the exe.** The launcher reads the file named by `--config` each time it starts, so changes take effect the next time you start the sim. Rebuild only when the code changes.
-- **Some apps need a delay.** Apps launched the moment the sim starts can fail if they expect the sim to be ready, and quit right away. If an app starts and immediately closes, increase its `delay` (try 20, then higher). Slower PCs need longer.
+- **Some apps may need a delay.** Apps launched the moment the sim starts can fail if they expect the sim to be ready, and quit right away. If an app starts and immediately closes, increase its `delay` (try 20, then higher). Longer sim load times need longer delays.
 - **Log:** `launcher.log` is written next to `MSFSLauncher.exe`. If something doesn't launch or close, check there first. Lines like `closed X` or `COULD NOT close X` show what happened at shutdown.
 - **Antivirus** may flag the exe, as it does with many programs built with PyInstaller. The source is in this repo.
 - Tray-only apps may never show a window. The log will say `no window found`, which is not an error.
@@ -92,16 +99,6 @@ Planned updates:
 - [ ] Option to turn administrator mode on or off
 - [ ] Support for MSFS 2020 and 2024 side by side
 - [ ] Clearer logging, for example a warning when an app quits right after launching
-
-## Building the exe
-
-For now you need this step to generate the exe. This will be called from the exe.xml 
-
-1. **Install Python** from the official site: <https://www.python.org/downloads/>. On the first screen of the installer, **tick "Add python.exe to PATH"** before clicking Install. If you skip this, the build will not find Python. (If you already installed Python without it, run the installer again and choose Modify, or reinstall.)
-2. **Double-click `build.bat`.** It checks for Python, installs the build tool (PyInstaller), and builds the exe. No command line needed.
-3. When it finishes, the exe is in `dist\MSFSLauncher\`. Keep the `_internal` folder next to `MSFSLauncher.exe`, and point exe.xml at that exe (see Setup).
-
-Built and tested with Python 3.12. The launcher itself uses only the standard library.
 
 ## Testing without the sim
 
