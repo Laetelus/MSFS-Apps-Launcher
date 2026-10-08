@@ -95,7 +95,7 @@ Planned updates:
 
 ## Building the exe
 
-You only need this if you are building from source instead of using a prebuilt release.
+For now you need this step to generate the exe. This will be called from the exe.xml 
 
 1. **Install Python** from the official site: <https://www.python.org/downloads/>. On the first screen of the installer, **tick "Add python.exe to PATH"** before clicking Install. If you skip this, the build will not find Python. (If you already installed Python without it, run the installer again and choose Modify, or reinstall.)
 2. **Double-click `build.bat`.** It checks for Python, installs the build tool (PyInstaller), and builds the exe. No command line needed.
