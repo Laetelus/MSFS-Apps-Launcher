@@ -4,11 +4,13 @@ Starts your Microsoft Flight Simulator companion apps automatically when the sim
 
 This is an early version. It is configured by editing a JSON file; a GUI is planned.
 
-## Setup
+# Setup
 
 1. **Put the folder somewhere permanent**, for example `C:\MSFS Launcher\`. If you move it later, update exe.xml (step 3).
 2. **Edit `apps.json`** in that folder and list your apps (see below). The file ships with placeholder entries that you replace.
 3. **Point MSFS at the launcher** by adding an entry to your `exe.xml`:
+
+## exe.xml
 
 ```xml
 <Launch.Addon>
@@ -22,8 +24,7 @@ This is an early version. It is configured by editing a JSON file; a GUI is plan
 
    Change both paths to where you put the files. If you already have other entries in `exe.xml`, add this one next to them and leave theirs alone. Make a backup of `exe.xml` first.
 
-   Where `exe.xml` lives depends on how you installed MSFS (Microsoft Store or Steam) and which version you run. If you don't know, search your PC for `exe.xml`.
-4. **Start MSFS.** `exe.xml` is only read when the sim starts, so restart the sim after any change.
+   Where `exe.xml` lives depends on how you installed MSFS (Microsoft Store or Steam) and which version you run. If you don't know, search your PC for `exe.xml`. Note, `exe.xml` is only read when the sim starts, so restart the sim after any change.
 
 ## apps.json
 
@@ -65,7 +66,7 @@ Per app:
 
 Built and tested with Python 3.12. The launcher itself uses only the standard library.
 
-## Things to know
+# Things to know
 
 - **Editing `apps.json` does not require rebuilding the exe.** The launcher reads the file named by `--config` each time it starts, so changes take effect the next time you start the sim. Rebuild only when the code changes.
 - **Some apps may need a delay.** Apps launched the moment the sim starts can fail if they expect the sim to be ready, and quit right away. If an app starts and immediately closes, increase its `delay` (try 20, then higher). Longer sim load times need longer delays.
@@ -73,13 +74,13 @@ Built and tested with Python 3.12. The launcher itself uses only the standard li
 - **Antivirus** may flag the exe, as it does with many programs built with PyInstaller. The source is in this repo.
 - Tray-only apps may never show a window. The log will say `no window found`, which is not an error.
 
-## Known limitations
+# Known limitations
 
 - **No window, taskbar icon, or tray icon yet.** The launcher runs in the background only while the sim runs. To see it, look for `MSFSLauncher.exe` in Task Manager. To stop it early, end that process there. It exits on its own after the sim closes and the apps are shut down.
 - Configuration is by editing `apps.json` by hand.
 - Window control is limited to minimized or maximized, and some apps may restore their own window after being minimized.
 
-## Roadmap
+# Roadmap
 
 Done:
 
@@ -100,7 +101,7 @@ Planned updates:
 - [ ] Support for MSFS 2020 and 2024 side by side
 - [ ] Clearer logging, for example a warning when an app quits right after launching
 
-## Testing without the sim
+# Testing without the sim
 
 The launcher treats whatever `"sim"` names as the sim. To try it with Notepad:
 
