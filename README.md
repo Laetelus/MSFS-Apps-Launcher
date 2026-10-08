@@ -10,22 +10,6 @@ This is an early version. It is configured by editing a JSON file; a GUI is plan
 2. **Edit `apps.json`** in that folder and list your apps (see below). The file ships with placeholder entries that you replace.
 3. **Point MSFS at the launcher** by adding an entry to your `exe.xml`:
 
-## exe.xml
-
-```xml
-<Launch.Addon>
-  <Name>App Launcher</Name>
-  <Disabled>False</Disabled>
-  <ManualLoad>False</ManualLoad>
-  <Path>C:\MSFS Launcher\MSFSLauncher.exe</Path>
-  <CommandLine>--config "C:\MSFS Launcher\apps.json"</CommandLine>
-</Launch.Addon>
-```
-
-   Change both paths to where you put the files. If you already have other entries in `exe.xml`, add this one next to them and leave theirs alone. Make a backup of `exe.xml` first.
-
-   Where `exe.xml` lives depends on how you installed MSFS (Microsoft Store or Steam) and which version you run. If you don't know, search your PC for `exe.xml`. Note, `exe.xml` is only read when the sim starts, so restart the sim after any change.
-
 ## apps.json
 
 ```json
@@ -57,6 +41,22 @@ Per app:
 | `skipIfRunning` | `true` | Don't launch the app if it is already running. Apps that were already open are not closed later. |
 | `process` | exe file name | Process name to close. Set this if the exe you launch starts a different process and quits. |
 | `args` | none | List of command-line arguments, for example `["--flag"]`. |
+
+## exe.xml
+
+```xml
+<Launch.Addon>
+  <Name>App Launcher</Name>
+  <Disabled>False</Disabled>
+  <ManualLoad>False</ManualLoad>
+  <Path>C:\MSFS Launcher\MSFSLauncher.exe</Path>
+  <CommandLine>--config "C:\MSFS Launcher\apps.json"</CommandLine>
+</Launch.Addon>
+```
+
+   Change both paths to where you put the files. If you already have other entries in `exe.xml`, add this one next to them and leave theirs alone. Make a backup of `exe.xml` first.
+
+   Where `exe.xml` lives depends on how you installed MSFS (Microsoft Store or Steam) and which version you run. If you don't know, search your PC for `exe.xml`. Note, `exe.xml` is only read when the sim starts, so restart the sim after any change.
 
 ## Build the exe
 
