@@ -15,12 +15,14 @@ import subprocess
 import sys
 import time
 import os
-import argparse   # put this with your other imports at the top
+import argparse  
+from session_watch import start_session_watch
 from window_ctrl import start_window_watcher
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", help="path to apps.json")
+parser.add_argument("--sim", help="override sim executable name (for development/testing)")
 ARGS = parser.parse_args()
 
 if getattr(sys, "frozen", False):
@@ -104,12 +106,28 @@ def launch(app):
     log.info("launched %s", app["name"])
     return (app["name"], proc_name, app.get("closeOnExit", True))
 
+def launch_due(pending, elapsed, launched):
+    """Launch every app in `pending` whose delay has passed (removes them)."""
+    while pending and pending[0].get("delay", 0) <= elapsed:
+        app = pending.pop(0)
+        try:
+            result = launch(app)
+            if result:
+                launched.append(result)
+        except Exception as exc:  # one bad path shouldn't stop the rest
+            log.info("failed to launch %s: %s", app["name"], exc)
 
 def main():
     cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
-    sim = cfg["sim"]
+    # Allow override via environment variable or command-line argument (useful for development)
+    sim = ARGS.sim or os.environ.get("MSFS_LAUNCHER_SIM") or cfg["sim"]
+    log.info("using sim: %s (source: %s)", sim, 
+             "CLI arg" if ARGS.sim else ("env var" if os.environ.get("MSFS_LAUNCHER_SIM") else "config file"))
     apps = [a for a in cfg["apps"] if a.get("enabled", True)]
-    apps.sort(key=lambda a: a.get("delay", 0))  # stable: keeps list order
+    session_apps = sorted((a for a in apps if a.get("start") == "session"),
+                          key=lambda a: a.get("delay", 0))
+    apps = sorted((a for a in apps if a.get("start") != "session"),
+                  key=lambda a: a.get("delay", 0))
 
     # exe.xml starts us with the sim, but give it a minute to show up.
     for _ in range(30):
@@ -123,17 +141,17 @@ def main():
     log.info("%s detected, starting", sim)
     start = time.time()
     launched = []
+    session_ready = start_session_watch(lambda: is_running(sim)) if session_apps else None
+    session_start = None
 
     while is_running(sim):
         elapsed = time.time() - start
-        while apps and apps[0].get("delay", 0) <= elapsed:
-            app = apps.pop(0)
-            try:
-                result = launch(app)
-                if result:
-                    launched.append(result)
-            except Exception as exc:  # one bad path shouldn't stop the rest
-                log.info("failed to launch %s: %s", app["name"], exc)
+        launch_due(apps, elapsed, launched)
+
+        if session_ready is not None and session_ready.is_set():
+            if session_start is None:
+                session_start = time.time()
+            launch_due(session_apps, time.time() - session_start, launched)
         time.sleep(1)
 
     log.info("sim exited, closing apps")
