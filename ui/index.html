@@ -260,11 +260,12 @@ document.addEventListener('click', async e => {
   // Add new app button
   if (t.id === 'add') {
     const p = await pywebview.api.browse_exe(); if (!p) return;
+    if (cfg.apps.some(app => app.path === p)) { say('This app is already in the list'); return; }
     cfg.apps.push({ name: p.split(/[\\/]/).pop().replace(/\.exe$/i, ''), path: p, delay: 0, closeOnExit: true });
     sel = cfg.apps.length - 1; touch(); render(); return;
   }
   // Browse button - change app path
-  if (t.id === 'browse') { const p = await pywebview.api.browse_exe(); if (p) { a.path = p; touch(); render(); } return; }
+  if (t.id === 'browse') { const p = await pywebview.api.browse_exe(); if (p) { if (cfg.apps.some((app, i) => i !== sel && app.path === p)) { say('This app is already in the list'); return; } a.path = p; touch(); render(); } return; }
   // Remove button - delete app
   if (t.id === 'remove') { cfg.apps.splice(sel, 1); sel = Math.min(sel, cfg.apps.length - 1); touch(); render(); return; }
   // Save button - write config to file
