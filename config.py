@@ -5,7 +5,7 @@ import os
 import shutil
 from pathlib import Path
 
-DEFAULT = {"sim": "FlightSimulator2024.exe", "apps": []}
+DEFAULT = {"sim": "", "apps": []}
 
 
 def load(path):

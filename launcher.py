@@ -96,15 +96,16 @@ def launch(app):
     """Start one app. Returns (name, process_name, close_on_exit) or None."""
     path = Path(app["path"])
     proc_name = app.get("process", path.name)
-    if app.get("skipIfRunning", True) and is_running(proc_name):
+    if is_running(proc_name):
         log.info("%s already running, skipping", app["name"])
-        return None
-    # "requires administrator" prompt that would otherwise cause WinError 740
+        return (app["name"], proc_name, app.get("closeOnExit", True))
+    
     env = {**os.environ, "__COMPAT_LAYER": "RunAsInvoker"} if app.get("runAsInvoker", True) else None
     subprocess.Popen([str(path), *app.get("args", [])], cwd=path.parent, env=env)
     start_window_watcher(app["name"], proc_name, app.get("window", "minimized"))
     log.info("launched %s", app["name"])
     return (app["name"], proc_name, app.get("closeOnExit", True))
+
 
 def launch_due(pending, elapsed, launched):
     """Launch every app in `pending` whose delay has passed (removes them)."""
@@ -117,10 +118,17 @@ def launch_due(pending, elapsed, launched):
         except Exception as exc:  # one bad path shouldn't stop the rest
             log.info("failed to launch %s: %s", app["name"], exc)
 
+
 def main():
+    if not CONFIG.exists():
+        log.info("No config at %s. Open the GUI, add a game and apps, and save.", CONFIG)
+        return
     cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
     # Allow override via environment variable or command-line argument (useful for development)
-    sim = ARGS.sim or os.environ.get("MSFS_LAUNCHER_SIM") or cfg["sim"]
+    sim = ARGS.sim or os.environ.get("MSFS_LAUNCHER_SIM") or cfg.get("sim")
+    if not sim:
+        log.info("No game configured. Open the GUI and add a game.")
+        return
     log.info("using sim: %s (source: %s)", sim, 
              "CLI arg" if ARGS.sim else ("env var" if os.environ.get("MSFS_LAUNCHER_SIM") else "config file"))
     apps = [a for a in cfg["apps"] if a.get("enabled", True)]
@@ -156,6 +164,7 @@ def main():
 
     log.info("sim exited, closing apps")
     close_all(launched)
+    
     
 def is_admin():
     return bool(ctypes.windll.shell32.IsUserAnAdmin())

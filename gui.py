@@ -57,7 +57,7 @@ def main():
     api = Api(path)
     api._window = webview.create_window(
         "MSFS App Launcher", str(BASE / "ui" / "index.html"),
-        js_api=api, width=1120, height=720, min_size=(900, 600))
+        js_api=api, width=1300, height=720, min_size=(900, 600))
     webview.start()
 
 

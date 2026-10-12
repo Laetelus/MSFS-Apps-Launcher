@@ -1,98 +1,197 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>MSFS App Launcher</title>
+<!-- ===== CSS STYLING ===== -->
 <style>
-:root{--bg:#0D1217;--panel:#131A21;--side:#0F161C;--line:#232E39;--text:#E8EEF3;--mute:#93A2B1;--acc:#4CC2FF}
+/* Color scheme variables */
+:root{--bg:#0D1217;--panel:#131A21;--side:#0F161C;--text:#E8EEF3;--mute:#93A2B1;--acc:#4CC2FF}
+/* Global styles */
 *{box-sizing:border-box}
 body{margin:0;height:100vh;display:flex;background:var(--bg);color:var(--text);font:14px 'Segoe UI',system-ui,sans-serif}
 button,input{font:inherit;color:inherit}
 button{cursor:pointer}
+[hidden]{display:none !important}
+/* ===== LEFT SIDEBAR ===== */
+.side{width:216px;flex:none;background:#0A0F13;border-right:1px solid #1B252E;padding:24px 14px;display:flex;flex-direction:column;gap:8px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:17px;padding:0 8px 20px}
+.game{display:flex;justify-content:space-between;align-items:center;height:42px;padding:0 12px;border-radius:9px;background:#17212A;font-weight:500}
+.game small{color:var(--mute)}
+/* Dashed "Add game" / "Change game" button */
+.ghost{height:42px;border:1px dashed #2A3744;border-radius:9px;background:none;color:var(--mute)}
+/* ===== MAIN CONTENT AREA ===== */
 .main{flex:1;min-width:0;display:flex;flex-direction:column;padding:26px 28px 18px;gap:16px}
+/* Header with title and Add button */
 .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
-h1{margin:0;font-size:24px;font-weight:600}
-.sub{color:var(--mute);font-size:12px;margin-top:6px}
-.sim{display:flex;flex-direction:column;gap:6px;margin-top:10px}
-label,.lbl{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+h1{margin:0;font-size:26px;font-weight:600}
+.sub{color:var(--mute);font-size:13px;margin-top:6px}
+/* Inline input for sim executable name */
+.inline{background:none;border:0;border-bottom:1px solid #2A3744;color:var(--text);width:230px;padding:0 2px}
+.inline:focus,.title-in:focus{outline:none;border-color:var(--acc)}
+/* Labels for form fields */
+.lbl{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+/* Regular text input box */
 .inp{height:38px;border-radius:9px;border:1px solid #2A3744;background:#0A0F13;padding:0 12px;width:100%}
+/* Primary button (blue) - used for Save and Add buttons */
 .pri{height:40px;padding:0 18px;border:0;border-radius:9px;background:var(--acc);color:#04121A;font-weight:600}
+/* Secondary button (outline) - used for Browse and Remove buttons */
 .sec{height:38px;padding:0 14px;border-radius:9px;border:1px solid #2A3744;background:transparent}
+/* ===== APP LIST SECTION ===== */
 .list{display:flex;flex-direction:column;gap:10px;overflow:auto;flex:1}
+/* Each app card in the list */
 .card{display:flex;align-items:center;gap:12px;min-height:62px;padding:8px 14px 8px 10px;background:var(--panel);border:1px solid #1E2933;border-radius:12px;cursor:pointer}
 .card.sel{border-color:var(--acc);background:#15202A}.card.off{opacity:.55}
+/* Card states during drag and drop */
+.card.drag{opacity:.4}.card.over{border-color:#7DD3FF;border-style:dashed}
+/* Drag handle icon on left side of card */
+.grip{color:#5C6B79;cursor:grab;flex:none;display:flex}
+/* Colored circle with app initial */
 .tile{width:36px;height:36px;border-radius:10px;background:#1E2A35;color:var(--acc);display:flex;align-items:center;justify-content:center;font-weight:600;flex:none}
+/* App name and path display */
 .nm{flex:1;min-width:0}.nm b{display:block}
-.nm span{display:block;color:var(--mute);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm span,.path{display:block;color:var(--mute);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Small tags showing app properties (start time, window state, close on exit) */
 .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .chip{padding:4px 10px;border-radius:13px;background:#1B2630;color:#B7C4D0;font-size:12px}.chip.a{background:#10303F;color:#7DD3FF}
-.mv{display:flex;flex-direction:column}.mv button{border:0;background:none;color:var(--mute);line-height:1;padding:2px 6px}
+/* Toggle switch (enable/disable app) */
 .tog{width:42px;height:24px;border-radius:12px;background:#2A3744;border:0;position:relative;padding:0;flex:none}
 .tog i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff}
 .tog.on{background:var(--acc)}.tog.on i{left:21px}
+/* Footer with status message and Save button */
 .ft{display:flex;justify-content:space-between;color:var(--mute);font-size:12px;align-items:center;gap:12px}
-.det{width:340px;background:var(--side);border-left:1px solid #1B252E;padding:24px 22px;display:flex;flex-direction:column;gap:18px;overflow:auto}
+/* ===== RIGHT DETAILS PANEL ===== */
+.det{width:340px;flex:none;background:var(--side);border-left:1px solid #1B252E;padding:24px 22px;display:flex;flex-direction:column;gap:18px;overflow:auto}
+/* App header in details panel (icon + name + browse button) */
+.dh{display:flex;align-items:center;gap:12px}.dt{flex:1;min-width:0}
+/* Editable app name field */
+.title-in{background:none;border:0;border-bottom:1px solid transparent;color:var(--text);font-weight:600;font-size:18px;width:100%;padding:2px 0}
+/* Field container with label and input */
 .fl{display:flex;flex-direction:column;gap:7px}
+/* Row layout for buttons */
 .row{display:flex;gap:8px}
+/* Segmented control buttons (e.g., "With sim" / "Flight ready") */
 .seg{display:flex;background:#0A0F13;border:1px solid #1E2933;border-radius:10px;padding:3px;gap:2px}
 .seg button{flex:1;height:34px;border:0;border-radius:8px;background:none;color:var(--mute)}
 .seg button.on{background:#1E2A35;color:#fff}
+/* Delay input container */
+.dl{display:flex;align-items:center;gap:12px}.dl input[type=range]{flex:1;accent-color:#4CC2FF}
+/* Number input for delay in seconds - MODIFY THIS TO CHANGE BOX SIZE */
+.num{width:150px;height:38px;border-radius:9px;border:1px solid #2A3744;background:#0A0F13;padding:0 10px;text-align:right}
+/* Option row with label and toggle */
 .opt{display:flex;justify-content:space-between;align-items:center;min-height:36px}
+/* Help text below fields */
 .hint{color:var(--mute);font-size:12px}
+/* Danger/delete button styling */
 .dng{color:#FF8A7A;border-color:#4A2A2A}
+/* Empty state message */
 .empty{color:var(--mute);padding:24px;text-align:center}
 </style></head>
 <body>
+<!-- ===== HTML STRUCTURE ===== -->
+<!-- LEFT SIDEBAR - Logo, branding, and game info -->
+<div class="side">
+  <!-- App logo and title -->
+  <div class="brand"><svg width="24" height="24" viewBox="0 0 26 26" fill="none" stroke="#4CC2FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15l20-9-7 16-3-7z"/></svg>Launchpad</div>
+  <div class="lbl" style="padding:0 8px 4px">Games</div>
+  <!-- Shows current sim name and app count (hidden until a game is added) -->
+  <div class="game" id="game" hidden><span id="gname"></span><small id="gcount"></small></div>
+  <!-- Pick the game's exe; its file name is used as the process to watch for -->
+  <button class="ghost" data-act="addgame" id="addgame">+ Add game</button>
+</div>
+
+<!-- MAIN CONTENT AREA - App list and controls -->
 <div class="main">
+  <!-- Header with title and Add App button -->
   <div class="hd">
     <div>
-      <h1>Launcher</h1>
-      <div class="sub" id="path"></div>
-      <div class="sim"><label for="sim">Sim executable</label>
-        <input class="inp" id="sim" placeholder="FlightSimulator2024.exe"></div>
+      <h1 id="title"></h1>
+      <!-- Input field for sim executable name -->
+      <div class="sub" id="watch">Watching for <input class="inline" id="sim" aria-label="Game executable" placeholder="game.exe" spellcheck="false"></div>
     </div>
+    <!-- Button to add new app -->
     <button class="pri" id="add">+ Add app</button>
   </div>
+  <!-- App counter label -->
   <div class="lbl" id="count"></div>
+  <!-- Container for app cards list - populated by JavaScript -->
   <div class="list" id="list"></div>
+  <!-- Footer with status message and Save button -->
   <div class="ft"><span id="status">Changes apply the next time the sim starts.</span>
     <button class="pri" id="save">Save</button></div>
 </div>
+
+<!-- RIGHT DETAILS PANEL - Edit selected app settings -->
 <div class="det" id="det"></div>
 
 <script>
-let cfg = null, sel = -1, dirty = false;
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const val = (a, k, d) => a[k] === undefined ? d : a[k];
+/* ===== JAVASCRIPT - DATA & UTILITIES ===== */
+// Application state variables
+let cfg = null,           // Config object loaded from Python backend
+    sel = -1,             // Currently selected app index
+    dragFrom = -1,        // Track drag-and-drop source index
+    picking = false;      // True while the "choose your game" list is showing
 
+// Helper functions
+const $ = s => document.querySelector(s);  // Shorthand for querySelector
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));  // Escape HTML special chars
+const val = (a, k, d) => a[k] === undefined ? d : a[k];  // Get value with default fallback
+
+// Game / sim helpers (there is no default game: blank means "no game added yet")
+const normSim = v => { v = (v || '').trim(); return !v ? '' : /\.exe$/i.test(v) ? v : v + '.exe'; };  // Add .exe if missing
+const say = t => { $('#status').textContent = t; };  // Update status message
+const touch = () => say('Unsaved changes');  // Mark as modified
+const simLabel = s => !s ? '' : /2024/.test(s) ? 'MSFS 2024' : /^FlightSimulator\.exe$/i.test(s) ? 'MSFS 2020' : s.replace(/\.exe$/i, '');  // Display name for a game
+const GRIP = '<svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.5"/><circle cx="10" cy="4" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="10" cy="14" r="1.5"/></svg>';  // SVG for drag handle
+
+/* ===== INITIALIZATION ===== */
+// When page loads and connects to Python backend
 window.addEventListener('pywebviewready', async () => {
-  cfg = await pywebview.api.get_config();
-  $('#path').textContent = await pywebview.api.config_path();
-  sel = cfg.apps.length ? 0 : -1;
-  render();
+  cfg = await pywebview.api.get_config();  // Load config from apps.json
+  sel = cfg.apps.length ? 0 : -1;  // Select first app if exists
+  cfg.sim = normSim(cfg.sim);
+  $('#sim').value = cfg.sim;
+  render();  // Display everything
 });
 
-function touch() {
-  dirty = true;
-  $('#status').textContent = 'Unsaved changes';
-}
-
+/* ===== RENDERING FUNCTIONS ===== */
+// Create chip tags showing app properties (start time, window state, etc.)
 function chips(a) {
   const d = val(a, 'delay', 0);
   const start = a.start === 'session'
     ? `<span class="chip a">After flight ready${d ? ' +' + d + ' s' : ''}</span>`
     : `<span class="chip a">${d ? 'After ' + d + ' s' : 'With sim'}</span>`;
   const win = `<span class="chip">${val(a, 'window', 'minimized') === 'maximized' ? 'Maximized' : 'Minimized'}</span>`;
-  const close = val(a, 'closeOnExit', true) ? '<span class="chip">Closes on exit</span>' : '';
-  return start + win + close;
+  return start + win + (val(a, 'closeOnExit', true) ? '<span class="chip">Closes on exit</span>' : '');
 }
 
+// Main render function - update both list and detail panel
 function render() { renderList(); renderDetail(); }
 
+// "Choose your game" list. Known games need no file picker (Windows blocks selecting
+// the exe inside Xbox / Game Pass install folders), so their process names are built in.
+const GAMES = [['MSFS 2024', 'FlightSimulator2024.exe', '24'], ['MSFS 2020', 'FlightSimulator.exe', '20']];
+const pickerHtml = () => `
+  <div class="lbl">Choose your game</div>
+  ${GAMES.map(([n, e, t]) => `<div class="card" data-game="${e}"><div class="tile">${t}</div><div class="nm"><b>${n}</b><span>${e}</span></div></div>`).join('')}
+  <div class="card" data-act="gamebrowse"><div class="tile">&hellip;</div><div class="nm"><b>Other program</b><span>Browse for a different exe</span></div></div>
+  <div><button class="sec" data-act="gamecancel">Cancel</button></div>`;
+
+// Render the app list (left/center area)
 function renderList() {
-  $('#sim').value = cfg.sim || '';
-  $('#count').textContent = cfg.apps.length + ' app' + (cfg.apps.length === 1 ? '' : 's') + ' \u00b7 launch order';
-  $('#list').innerHTML = cfg.apps.length ? cfg.apps.map((a, i) => `
-    <div class="card ${i === sel ? 'sel' : ''} ${val(a, 'enabled', true) ? '' : 'off'}" data-i="${i}">
-      <div class="mv"><button data-up="${i}" aria-label="Move up">\u25b2</button><button data-down="${i}" aria-label="Move down">\u25bc</button></div>
+  const n = cfg.apps.length, has = !!cfg.sim, label = simLabel(cfg.sim);
+  // Without a game, hide everything that depends on one and show the empty state
+  for (const id of ['#game', '#watch', '#add', '#count']) $(id).hidden = !has;
+  $('#addgame').textContent = has ? 'Change game' : '+ Add game';
+  $('#title').textContent = has ? label : 'No game yet';
+  if (picking) { $('#list').innerHTML = pickerHtml(); return; }
+  if (!has) {
+    $('#list').innerHTML = '<div class="empty">Add the game you fly (for example MSFS 2024), so the launcher knows which program to watch for.<br><br><button class="pri" data-act="addgame">+ Add game</button></div>';
+    return;
+  }
+  $('#gname').textContent = label;
+  $('#gcount').textContent = n;
+  $('#count').textContent = n + ' app' + (n === 1 ? '' : 's') + ' \u00b7 launch order';
+  $('#list').innerHTML = n ? cfg.apps.map((a, i) => `
+    <div class="card ${i === sel ? 'sel' : ''} ${val(a, 'enabled', true) ? '' : 'off'}" data-i="${i}" draggable="true">
+      <span class="grip" title="Drag to reorder">${GRIP}</span>
       <div class="tile">${esc((a.name || '?')[0].toUpperCase())}</div>
       <div class="nm"><b>${esc(a.name)}</b><span>${esc(a.path)}</span></div>
       <div class="chips">${chips(a)}</div>
@@ -100,87 +199,136 @@ function renderList() {
     </div>`).join('') : '<div class="empty">No apps yet. Click "Add app" to pick one.</div>';
 }
 
-function seg(key, opts, cur) {
-  return `<div class="seg">${opts.map(([v, t]) => `<button data-set="${key}" data-v="${v}" class="${cur === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
-}
-function toggle(key, label, on) {
-  return `<div class="opt">${label}<button class="tog ${on ? 'on' : ''}" data-flag="${key}" aria-label="${label}" aria-pressed="${on}"><i></i></button></div>`;
-}
+// Helper to create segmented control buttons
+const seg = (key, opts, cur) => `<div class="seg">${opts.map(([v, t]) => `<button data-set="${key}" data-v="${v}" class="${cur === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+// Helper to create toggle switch
+const toggle = (key, label, on) => `<div class="opt">${label}<button class="tog ${on ? 'on' : ''}" data-flag="${key}" aria-label="${label}" aria-pressed="${on}"><i></i></button></div>`;
 
+// Render the detail panel on the right (shows/edits selected app)
 function renderDetail() {
+  if (!cfg.sim) { $('#det').innerHTML = '<div class="empty">Add a game first, then add the apps you want to launch with it.</div>'; return; }
   const a = cfg.apps[sel];
   if (!a) { $('#det').innerHTML = '<div class="empty">Select an app to edit it.</div>'; return; }
-  const session = a.start === 'session';
+  const session = a.start === 'session', d = val(a, 'delay', 0);
   $('#det').innerHTML = `
-    <div class="fl"><label for="f-name">Name</label><input class="inp" id="f-name" value="${esc(a.name)}"></div>
-    <div class="fl"><label for="f-path">Program</label>
-      <div class="row"><input class="inp" id="f-path" value="${esc(a.path)}"><button class="sec" id="browse">Browse</button></div></div>
+    <div class="dh"><div class="tile">${esc((a.name || '?')[0].toUpperCase())}</div>
+      <div class="dt"><input class="title-in" id="f-name" value="${esc(a.name)}" aria-label="Name" spellcheck="false">
+        <span class="path" title="${esc(a.path)}">${esc(a.path)}</span></div>
+      <button class="sec" id="browse">Browse</button></div>
     <div class="fl"><span class="lbl">Start</span>
       ${seg('start', [['sim', 'With sim'], ['session', 'Flight ready']], session ? 'session' : 'sim')}
       <span class="hint">${session ? 'Starts once a flight has loaded and you are in the aircraft.' : 'Starts as soon as the sim is running.'}</span></div>
-    <div class="fl"><label for="f-delay">Delay (seconds)</label>
-      <input class="inp" id="f-delay" type="number" min="0" value="${val(a, 'delay', 0)}">
+    <div class="fl"><label class="lbl" for="f-delay">Delay (seconds)</label>
+      <div class="dl"><input class="num" id="f-delay" type="number" min="0" value="${d}"></div>
       <span class="hint">${session ? 'Counted from when the flight is ready.' : 'Counted from when the sim starts, not from the previous app.'}</span></div>
     <div class="fl"><span class="lbl">Window</span>
       ${seg('window', [['minimized', 'Minimized'], ['maximized', 'Maximized']], val(a, 'window', 'minimized'))}
       <span class="hint">Apps start minimized unless you choose Maximized.</span></div>
     <div class="fl"><span class="lbl">Behavior</span>
       ${toggle('closeOnExit', 'Close when sim exits', val(a, 'closeOnExit', true))}
-      ${toggle('skipIfRunning', 'Skip if already running', val(a, 'skipIfRunning', true))}</div>
+    <div class="fl"><label class="lbl" for="f-args">Launch arguments</label>
+      <input class="inp" id="f-args" placeholder="Optional" value="${esc((a.args || []).join(' '))}" spellcheck="false"></div>
     <div class="row" style="margin-top:auto"><button class="sec dng" id="remove" style="flex:1">Remove</button></div>`;
 }
 
+/* ===== EVENT HANDLERS ===== */
+// Handle clicks on buttons and cards
 document.addEventListener('click', async e => {
   const t = e.target.closest('button, .card'); if (!t || !cfg) return;
-  const d = t.dataset;
-  if (d.up !== undefined || d.down !== undefined) {
-    const i = +(d.up ?? d.down), j = d.up !== undefined ? i - 1 : i + 1;
-    if (j >= 0 && j < cfg.apps.length) {
-      [cfg.apps[i], cfg.apps[j]] = [cfg.apps[j], cfg.apps[i]];
-      if (sel === i) sel = j; else if (sel === j) sel = i;
-      touch(); render();
-    }
-    return;
+  const d = t.dataset, a = cfg.apps[sel];
+  // Add or change the game: the exe's file name becomes the process to watch for
+  if (d.act === 'addgame') { picking = true; render(); return; }
+  if (d.act === 'gamecancel') { picking = false; render(); return; }
+  if (d.game || d.act === 'gamebrowse') {
+    let exe = d.game;
+    if (!exe) { const p = await pywebview.api.browse_exe(); if (!p) return; exe = p.split(/[\\/]/).pop(); }
+    cfg.sim = exe; $('#sim').value = exe; picking = false;
+    sel = cfg.apps.length ? 0 : -1; touch(); render(); return;
   }
-  if (d.en !== undefined) { const a = cfg.apps[+d.en]; a.enabled = !val(a, 'enabled', true); touch(); render(); return; }
-  if (d.flag) { const a = cfg.apps[sel]; a[d.flag] = !val(a, d.flag, true); touch(); renderDetail(); render(); return; }
+  // Toggle app enabled/disabled
+  if (d.en !== undefined) { const x = cfg.apps[+d.en]; x.enabled = !val(x, 'enabled', true); touch(); render(); return; }
+  // Toggle behavior flags
+  if (d.flag) { a[d.flag] = !val(a, d.flag, true); touch(); render(); return; }
+  // Segmented control buttons (start type, window state)
   if (d.set) {
-    const a = cfg.apps[sel];
     if (d.set === 'start') { if (d.v === 'session') a.start = 'session'; else delete a.start; }
     else a[d.set] = d.v;
     touch(); render(); return;
   }
+  // Click on app card to select it
   if (d.i !== undefined) { sel = +d.i; render(); return; }
+  // Add new app button
   if (t.id === 'add') {
     const p = await pywebview.api.browse_exe(); if (!p) return;
-    const base = p.split(/[\\/]/).pop().replace(/\.exe$/i, '');
-    cfg.apps.push({ name: base, path: p, delay: 0, closeOnExit: true });
+    cfg.apps.push({ name: p.split(/[\\/]/).pop().replace(/\.exe$/i, ''), path: p, delay: 0, closeOnExit: true });
     sel = cfg.apps.length - 1; touch(); render(); return;
   }
-  if (t.id === 'browse') {
-    const p = await pywebview.api.browse_exe(); if (!p) return;
-    cfg.apps[sel].path = p; touch(); render(); return;
-  }
-  if (t.id === 'remove') {
-    cfg.apps.splice(sel, 1); sel = Math.min(sel, cfg.apps.length - 1); touch(); render(); return;
-  }
+  // Browse button - change app path
+  if (t.id === 'browse') { const p = await pywebview.api.browse_exe(); if (p) { a.path = p; touch(); render(); } return; }
+  // Remove button - delete app
+  if (t.id === 'remove') { cfg.apps.splice(sel, 1); sel = Math.min(sel, cfg.apps.length - 1); touch(); render(); return; }
+  // Save button - write config to file
   if (t.id === 'save') {
+    cfg.sim = normSim(cfg.sim);
+    if (!cfg.sim) { say('Add a game first.'); return; }
     const r = await pywebview.api.save_config(cfg);
-    dirty = !r.ok;
-    $('#status').textContent = r.ok ? 'Saved! Changes apply the next time the sim starts.' : 'Not saved: ' + r.error;
+    say(r.ok ? 'Saved. Changes apply the next time the sim starts.' : 'Not saved: ' + r.error);
   }
 });
 
+// Handle text input changes
 document.addEventListener('input', e => {
   if (!cfg) return;
-  const id = e.target.id, a = cfg.apps[sel];
-  if (id === 'sim') cfg.sim = e.target.value;
-  else if (id === 'f-name' && a) a.name = e.target.value;
-  else if (id === 'f-path' && a) a.path = e.target.value;
-  else if (id === 'f-delay' && a) a.delay = Math.max(0, parseInt(e.target.value, 10) || 0);
-  else return;
-  touch();
-  if (id !== 'sim') renderList();   // refresh the list only, so the field keeps focus
+  const id = e.target.id, a = cfg.apps[sel], v = e.target.value;
+  // Game executable name (only redraw while it still has text, so the box is not hidden mid-edit)
+  if (id === 'sim') { cfg.sim = v; if (v.trim()) renderList(); touch(); return; }
+  if (!a) return;
+  // App name
+  if (id === 'f-name') a.name = v;
+  // Launch arguments
+  else if (id === 'f-args') { const parts = v.trim().split(/\s+/).filter(Boolean); if (parts.length) a.args = parts; else delete a.args; }
+  // Delay value
+  else if (id === 'f-delay' || id === 'f-range') {
+    a.delay = Math.max(0, parseInt(v, 10) || 0);
+    if (id === 'f-range') $('#f-delay').value = a.delay; else $('#f-range').value = Math.min(a.delay, 300);
+  } else return;
+  touch(); renderList();   // list only, so the field keeps focus
 });
+
+// Handle field blur/change
+document.addEventListener('change', e => {
+  if (e.target.id !== 'sim' || !cfg) return;
+  cfg.sim = normSim(e.target.value); e.target.value = cfg.sim; render();
+});
+
+/* ===== DRAG AND DROP HANDLERS ===== */
+// Start dragging an app card
+document.addEventListener('dragstart', e => {
+  const c = e.target.closest('.card'); if (!c) return;
+  dragFrom = +c.dataset.i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(dragFrom));
+  c.classList.add('drag');
+});
+
+// Drag over a card
+document.addEventListener('dragover', e => {
+  const c = e.target.closest('.card'); if (!c || dragFrom < 0) return;
+  e.preventDefault();
+  document.querySelectorAll('.card.over').forEach(x => x.classList.remove('over'));
+  c.classList.add('over');
+});
+
+// Drop to reorder
+document.addEventListener('drop', e => {
+  const c = e.target.closest('.card'); if (!c || dragFrom < 0) return;
+  e.preventDefault();
+  const to = +c.dataset.i;
+  if (to !== dragFrom) {
+    const cur = cfg.apps[sel], [m] = cfg.apps.splice(dragFrom, 1);
+    cfg.apps.splice(to, 0, m); sel = cfg.apps.indexOf(cur); touch();
+  }
+});
+
+// End drag
+document.addEventListener('dragend', () => { dragFrom = -1; if (cfg) render(); });
 </script>
 </body></html>
