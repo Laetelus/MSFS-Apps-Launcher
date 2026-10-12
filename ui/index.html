@@ -72,9 +72,16 @@ h1{margin:0;font-size:26px;font-weight:600}
 .seg button{flex:1;height:34px;border:0;border-radius:8px;background:none;color:var(--mute)}
 .seg button.on{background:#1E2A35;color:#fff}
 /* Delay input container */
-.dl{display:flex;align-items:center;gap:12px}.dl input[type=range]{flex:1;accent-color:#4CC2FF}
+.dl{display:flex;align-items:center;gap:8px}.dl input[type=range]{flex:1;accent-color:#4CC2FF}
 /* Number input for delay in seconds - MODIFY THIS TO CHANGE BOX SIZE */
 .num{width:150px;height:38px;border-radius:9px;border:1px solid #2A3744;background:#0A0F13;padding:0 10px;text-align:right}
+/* Hide default number spinners */
+.num::-webkit-outer-spin-button,.num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.num[type=number]{-moz-appearance:textfield}
+/* Spinner button group next to number input */
+.spins{display:flex;flex-direction:column;gap:2px}
+.spins button{width:24px;height:16px;padding:0;border:1px solid #2A3744;background:#0A0F13;color:var(--mute);font-size:11px;line-height:1;border-radius:4px;cursor:pointer}
+.spins button:hover{background:#1E2A35;color:var(--text)}
 /* Option row with label and toggle */
 .opt{display:flex;justify-content:space-between;align-items:center;min-height:36px}
 /* Help text below fields */
@@ -214,12 +221,12 @@ function renderDetail() {
     <div class="dh"><div class="tile">${esc((a.name || '?')[0].toUpperCase())}</div>
       <div class="dt"><input class="title-in" id="f-name" value="${esc(a.name)}" aria-label="Name" spellcheck="false">
         <span class="path" title="${esc(a.path)}">${esc(a.path)}</span></div>
-      <button class="sec" id="browse">Browse</button></div>
+      <button class="sec" id="browse">Open</button></div>
     <div class="fl"><span class="lbl">Start</span>
       ${seg('start', [['sim', 'With sim'], ['session', 'Flight ready']], session ? 'session' : 'sim')}
       <span class="hint">${session ? 'Starts once a flight has loaded and you are in the aircraft.' : 'Starts as soon as the sim is running.'}</span></div>
     <div class="fl"><label class="lbl" for="f-delay">Delay (seconds)</label>
-      <div class="dl"><input class="num" id="f-delay" type="number" min="0" value="${d}"></div>
+      <div class="dl"><input class="num" id="f-delay" type="number" min="0" value="${d}"><div class="spins"><button type="button" data-spin="up">▲</button><button type="button" data-spin="down">▼</button></div></div>
       <span class="hint">${session ? 'Counted from when the flight is ready.' : 'Counted from when the sim starts, not from the previous app.'}</span></div>
     <div class="fl"><span class="lbl">Window</span>
       ${seg('window', [['minimized', 'Minimized'], ['maximized', 'Maximized']], val(a, 'window', 'minimized'))}
@@ -265,7 +272,7 @@ document.addEventListener('click', async e => {
     sel = cfg.apps.length - 1; touch(); render(); return;
   }
   // Browse button - change app path
-  if (t.id === 'browse') { const p = await pywebview.api.browse_exe(); if (p) { if (cfg.apps.some((app, i) => i !== sel && app.path === p)) { say('This app is already in the list'); return; } a.path = p; touch(); render(); } return; }
+  if (t.id === 'browse') { const folder = a.path.split(/[\\/]/).slice(0, -1).join('/'); const p = await pywebview.api.browse_exe(folder); if (p) { if (cfg.apps.some((app, i) => i !== sel && app.path === p)) { say('This app is already in the list'); return; } a.path = p; touch(); render(); } return; }
   // Remove button - delete app
   if (t.id === 'remove') { cfg.apps.splice(sel, 1); sel = Math.min(sel, cfg.apps.length - 1); touch(); render(); return; }
   // Save button - write config to file
@@ -295,6 +302,19 @@ document.addEventListener('input', e => {
   } else return;
   touch(); renderList();   // list only, so the field keeps focus
 });
+
+// Handle spinner buttons
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-spin]')) {
+    e.preventDefault(); e.stopPropagation();
+    const btn = e.target.closest('[data-spin]'), inp = $('#f-delay'), a = cfg.apps[sel];
+    if (!inp || !a) return;
+    const delta = btn.dataset.spin === 'up' ? 1 : -1;
+    inp.value = Math.max(0, parseInt(inp.value, 10) + delta);
+    a.delay = Math.max(0, parseInt(inp.value, 10));
+    touch(); renderList();
+  }
+}, true);
 
 // Handle field blur/change
 document.addEventListener('change', e => {
