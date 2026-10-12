@@ -265,7 +265,7 @@ document.addEventListener('click', async e => {
     sel = cfg.apps.length - 1; touch(); render(); return;
   }
   // Browse button - change app path
-  if (t.id === 'browse') { const p = await pywebview.api.browse_exe(); if (p) { if (cfg.apps.some((app, i) => i !== sel && app.path === p)) { say('This app is already in the list'); return; } a.path = p; touch(); render(); } return; }
+  if (t.id === 'browse') { const folder = a.path.split(/[\\/]/).slice(0, -1).join('/'); const p = await pywebview.api.browse_exe(folder); if (p) { if (cfg.apps.some((app, i) => i !== sel && app.path === p)) { say('This app is already in the list'); return; } a.path = p; touch(); render(); } return; }
   // Remove button - delete app
   if (t.id === 'remove') { cfg.apps.splice(sel, 1); sel = Math.min(sel, cfg.apps.length - 1); touch(); render(); return; }
   // Save button - write config to file

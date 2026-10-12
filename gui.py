@@ -42,9 +42,10 @@ class Api:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
-    def browse_exe(self):
+    def browse_exe(self, folder=None):
+        folder = Path(folder) if folder and Path(folder).is_dir() else None
         result = self._window.create_file_dialog(
-            webview.FileDialog.OPEN, file_types=("Programs (*.exe)",))
+            webview.FileDialog.OPEN, file_types=("Programs (*.exe)",), directory=str(folder) if folder else None)
         return result[0] if result else None
 
 
