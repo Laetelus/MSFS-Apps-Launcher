@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>MSFS App Launcher</title>
+<style>
+:root{--bg:#0D1217;--panel:#131A21;--side:#0F161C;--line:#232E39;--text:#E8EEF3;--mute:#93A2B1;--acc:#4CC2FF}
+*{box-sizing:border-box}
+body{margin:0;height:100vh;display:flex;background:var(--bg);color:var(--text);font:14px 'Segoe UI',system-ui,sans-serif}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:26px 28px 18px;gap:16px}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+h1{margin:0;font-size:24px;font-weight:600}
+.sub{color:var(--mute);font-size:12px;margin-top:6px}
+.sim{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+label,.lbl{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+.inp{height:38px;border-radius:9px;border:1px solid #2A3744;background:#0A0F13;padding:0 12px;width:100%}
+.pri{height:40px;padding:0 18px;border:0;border-radius:9px;background:var(--acc);color:#04121A;font-weight:600}
+.sec{height:38px;padding:0 14px;border-radius:9px;border:1px solid #2A3744;background:transparent}
+.list{display:flex;flex-direction:column;gap:10px;overflow:auto;flex:1}
+.card{display:flex;align-items:center;gap:12px;min-height:62px;padding:8px 14px 8px 10px;background:var(--panel);border:1px solid #1E2933;border-radius:12px;cursor:pointer}
+.card.sel{border-color:var(--acc);background:#15202A}.card.off{opacity:.55}
+.tile{width:36px;height:36px;border-radius:10px;background:#1E2A35;color:var(--acc);display:flex;align-items:center;justify-content:center;font-weight:600;flex:none}
+.nm{flex:1;min-width:0}.nm b{display:block}
+.nm span{display:block;color:var(--mute);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chip{padding:4px 10px;border-radius:13px;background:#1B2630;color:#B7C4D0;font-size:12px}.chip.a{background:#10303F;color:#7DD3FF}
+.mv{display:flex;flex-direction:column}.mv button{border:0;background:none;color:var(--mute);line-height:1;padding:2px 6px}
+.tog{width:42px;height:24px;border-radius:12px;background:#2A3744;border:0;position:relative;padding:0;flex:none}
+.tog i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.tog.on{background:var(--acc)}.tog.on i{left:21px}
+.ft{display:flex;justify-content:space-between;color:var(--mute);font-size:12px;align-items:center;gap:12px}
+.det{width:340px;background:var(--side);border-left:1px solid #1B252E;padding:24px 22px;display:flex;flex-direction:column;gap:18px;overflow:auto}
+.fl{display:flex;flex-direction:column;gap:7px}
+.row{display:flex;gap:8px}
+.seg{display:flex;background:#0A0F13;border:1px solid #1E2933;border-radius:10px;padding:3px;gap:2px}
+.seg button{flex:1;height:34px;border:0;border-radius:8px;background:none;color:var(--mute)}
+.seg button.on{background:#1E2A35;color:#fff}
+.opt{display:flex;justify-content:space-between;align-items:center;min-height:36px}
+.hint{color:var(--mute);font-size:12px}
+.dng{color:#FF8A7A;border-color:#4A2A2A}
+.empty{color:var(--mute);padding:24px;text-align:center}
+</style></head>
+<body>
+<div class="main">
+  <div class="hd">
+    <div>
+      <h1>Launcher</h1>
+      <div class="sub" id="path"></div>
+      <div class="sim"><label for="sim">Sim executable</label>
+        <input class="inp" id="sim" placeholder="FlightSimulator2024.exe"></div>
+    </div>
+    <button class="pri" id="add">+ Add app</button>
+  </div>
+  <div class="lbl" id="count"></div>
+  <div class="list" id="list"></div>
+  <div class="ft"><span id="status">Changes apply the next time the sim starts.</span>
+    <button class="pri" id="save">Save</button></div>
+</div>
+<div class="det" id="det"></div>
+
+<script>
+let cfg = null, sel = -1, dirty = false;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const val = (a, k, d) => a[k] === undefined ? d : a[k];
+
+window.addEventListener('pywebviewready', async () => {
+  cfg = await pywebview.api.get_config();
+  $('#path').textContent = await pywebview.api.config_path();
+  sel = cfg.apps.length ? 0 : -1;
+  render();
+});
+
+function touch() {
+  dirty = true;
+  $('#status').textContent = 'Unsaved changes';
+}
+
+function chips(a) {
+  const d = val(a, 'delay', 0);
+  const start = a.start === 'session'
+    ? `<span class="chip a">After flight ready${d ? ' +' + d + ' s' : ''}</span>`
+    : `<span class="chip a">${d ? 'After ' + d + ' s' : 'With sim'}</span>`;
+  const win = `<span class="chip">${val(a, 'window', 'minimized') === 'maximized' ? 'Maximized' : 'Minimized'}</span>`;
+  const close = val(a, 'closeOnExit', true) ? '<span class="chip">Closes on exit</span>' : '';
+  return start + win + close;
+}
+
+function render() { renderList(); renderDetail(); }
+
+function renderList() {
+  $('#sim').value = cfg.sim || '';
+  $('#count').textContent = cfg.apps.length + ' app' + (cfg.apps.length === 1 ? '' : 's') + ' \u00b7 launch order';
+  $('#list').innerHTML = cfg.apps.length ? cfg.apps.map((a, i) => `
+    <div class="card ${i === sel ? 'sel' : ''} ${val(a, 'enabled', true) ? '' : 'off'}" data-i="${i}">
+      <div class="mv"><button data-up="${i}" aria-label="Move up">\u25b2</button><button data-down="${i}" aria-label="Move down">\u25bc</button></div>
+      <div class="tile">${esc((a.name || '?')[0].toUpperCase())}</div>
+      <div class="nm"><b>${esc(a.name)}</b><span>${esc(a.path)}</span></div>
+      <div class="chips">${chips(a)}</div>
+      <button class="tog ${val(a, 'enabled', true) ? 'on' : ''}" data-en="${i}" aria-label="Enabled" aria-pressed="${val(a, 'enabled', true)}"><i></i></button>
+    </div>`).join('') : '<div class="empty">No apps yet. Click "Add app" to pick one.</div>';
+}
+
+function seg(key, opts, cur) {
+  return `<div class="seg">${opts.map(([v, t]) => `<button data-set="${key}" data-v="${v}" class="${cur === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+}
+function toggle(key, label, on) {
+  return `<div class="opt">${label}<button class="tog ${on ? 'on' : ''}" data-flag="${key}" aria-label="${label}" aria-pressed="${on}"><i></i></button></div>`;
+}
+
+function renderDetail() {
+  const a = cfg.apps[sel];
+  if (!a) { $('#det').innerHTML = '<div class="empty">Select an app to edit it.</div>'; return; }
+  const session = a.start === 'session';
+  $('#det').innerHTML = `
+    <div class="fl"><label for="f-name">Name</label><input class="inp" id="f-name" value="${esc(a.name)}"></div>
+    <div class="fl"><label for="f-path">Program</label>
+      <div class="row"><input class="inp" id="f-path" value="${esc(a.path)}"><button class="sec" id="browse">Browse</button></div></div>
+    <div class="fl"><span class="lbl">Start</span>
+      ${seg('start', [['sim', 'With sim'], ['session', 'Flight ready']], session ? 'session' : 'sim')}
+      <span class="hint">${session ? 'Starts once a flight has loaded and you are in the aircraft.' : 'Starts as soon as the sim is running.'}</span></div>
+    <div class="fl"><label for="f-delay">Delay (seconds)</label>
+      <input class="inp" id="f-delay" type="number" min="0" value="${val(a, 'delay', 0)}">
+      <span class="hint">${session ? 'Counted from when the flight is ready.' : 'Counted from when the sim starts, not from the previous app.'}</span></div>
+    <div class="fl"><span class="lbl">Window</span>
+      ${seg('window', [['minimized', 'Minimized'], ['maximized', 'Maximized']], val(a, 'window', 'minimized'))}
+      <span class="hint">Apps start minimized unless you choose Maximized.</span></div>
+    <div class="fl"><span class="lbl">Behavior</span>
+      ${toggle('closeOnExit', 'Close when sim exits', val(a, 'closeOnExit', true))}
+      ${toggle('skipIfRunning', 'Skip if already running', val(a, 'skipIfRunning', true))}</div>
+    <div class="row" style="margin-top:auto"><button class="sec dng" id="remove" style="flex:1">Remove</button></div>`;
+}
+
+document.addEventListener('click', async e => {
+  const t = e.target.closest('button, .card'); if (!t || !cfg) return;
+  const d = t.dataset;
+  if (d.up !== undefined || d.down !== undefined) {
+    const i = +(d.up ?? d.down), j = d.up !== undefined ? i - 1 : i + 1;
+    if (j >= 0 && j < cfg.apps.length) {
+      [cfg.apps[i], cfg.apps[j]] = [cfg.apps[j], cfg.apps[i]];
+      if (sel === i) sel = j; else if (sel === j) sel = i;
+      touch(); render();
+    }
+    return;
+  }
+  if (d.en !== undefined) { const a = cfg.apps[+d.en]; a.enabled = !val(a, 'enabled', true); touch(); render(); return; }
+  if (d.flag) { const a = cfg.apps[sel]; a[d.flag] = !val(a, d.flag, true); touch(); renderDetail(); render(); return; }
+  if (d.set) {
+    const a = cfg.apps[sel];
+    if (d.set === 'start') { if (d.v === 'session') a.start = 'session'; else delete a.start; }
+    else a[d.set] = d.v;
+    touch(); render(); return;
+  }
+  if (d.i !== undefined) { sel = +d.i; render(); return; }
+  if (t.id === 'add') {
+    const p = await pywebview.api.browse_exe(); if (!p) return;
+    const base = p.split(/[\\/]/).pop().replace(/\.exe$/i, '');
+    cfg.apps.push({ name: base, path: p, delay: 0, closeOnExit: true });
+    sel = cfg.apps.length - 1; touch(); render(); return;
+  }
+  if (t.id === 'browse') {
+    const p = await pywebview.api.browse_exe(); if (!p) return;
+    cfg.apps[sel].path = p; touch(); render(); return;
+  }
+  if (t.id === 'remove') {
+    cfg.apps.splice(sel, 1); sel = Math.min(sel, cfg.apps.length - 1); touch(); render(); return;
+  }
+  if (t.id === 'save') {
+    const r = await pywebview.api.save_config(cfg);
+    dirty = !r.ok;
+    $('#status').textContent = r.ok ? 'Saved! Changes apply the next time the sim starts.' : 'Not saved: ' + r.error;
+  }
+});
+
+document.addEventListener('input', e => {
+  if (!cfg) return;
+  const id = e.target.id, a = cfg.apps[sel];
+  if (id === 'sim') cfg.sim = e.target.value;
+  else if (id === 'f-name' && a) a.name = e.target.value;
+  else if (id === 'f-path' && a) a.path = e.target.value;
+  else if (id === 'f-delay' && a) a.delay = Math.max(0, parseInt(e.target.value, 10) || 0);
+  else return;
+  touch();
+  if (id !== 'sim') renderList();   // refresh the list only, so the field keeps focus
+});
+</script>
+</body></html>
