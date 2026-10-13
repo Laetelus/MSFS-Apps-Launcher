@@ -57,6 +57,7 @@ h1{margin:0;font-size:26px;font-weight:600}
 .tog.on{background:var(--acc)}.tog.on i{left:21px}
 /* Footer with status message and Save button */
 .ft{display:flex;justify-content:space-between;color:var(--mute);font-size:12px;align-items:center;gap:12px}
+.ft.unsaved{color:#FF8A7A;font-weight:600}
 /* ===== RIGHT DETAILS PANEL ===== */
 .det{width:340px;flex:none;background:var(--side);border-left:1px solid #1B252E;padding:24px 22px;display:flex;flex-direction:column;gap:18px;overflow:auto}
 /* App header in details panel (icon + name + browse button) */
@@ -121,7 +122,7 @@ h1{margin:0;font-size:26px;font-weight:600}
   <!-- Container for app cards list - populated by JavaScript -->
   <div class="list" id="list"></div>
   <!-- Footer with status message and Save button -->
-  <div class="ft"><span id="status">Changes apply the next time the sim starts.</span>
+  <div class="ft" id="ft"><span id="status">Changes apply the next time the sim starts.</span>
     <button class="pri" id="save">Save</button></div>
 </div>
 
@@ -134,7 +135,8 @@ h1{margin:0;font-size:26px;font-weight:600}
 let cfg = null,           // Config object loaded from Python backend
     sel = -1,             // Currently selected app index
     dragFrom = -1,        // Track drag-and-drop source index
-    picking = false;      // True while the "choose your game" list is showing
+    picking = false,      // True while the "choose your game" list is showing
+    unsaved = false;      // True when there are unsaved changes
 
 // Helper functions
 const $ = s => document.querySelector(s);  // Shorthand for querySelector
@@ -144,7 +146,8 @@ const val = (a, k, d) => a[k] === undefined ? d : a[k];  // Get value with defau
 // Game / sim helpers (there is no default game: blank means "no game added yet")
 const normSim = v => { v = (v || '').trim(); return !v ? '' : /\.exe$/i.test(v) ? v : v + '.exe'; };  // Add .exe if missing
 const say = t => { $('#status').textContent = t; };  // Update status message
-const touch = () => say('Unsaved changes');  // Mark as modified
+const updateUnsaved = () => { $('#ft').classList.toggle('unsaved', unsaved); $('#save').disabled = !unsaved; };
+const touch = () => { unsaved = true; say('Unsaved changes'); updateUnsaved(); };  // Mark as modified
 const simLabel = s => !s ? '' : /2024/.test(s) ? 'MSFS 2024' : /^FlightSimulator\.exe$/i.test(s) ? 'MSFS 2020' : s.replace(/\.exe$/i, '');  // Display name for a game
 const GRIP = '<svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.5"/><circle cx="10" cy="4" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="10" cy="14" r="1.5"/></svg>';  // SVG for drag handle
 
@@ -280,7 +283,8 @@ document.addEventListener('click', async e => {
     cfg.sim = normSim(cfg.sim);
     if (!cfg.sim) { say('Add a game first.'); return; }
     const r = await pywebview.api.save_config(cfg);
-    say(r.ok ? 'Saved. Changes apply the next time the sim starts.' : 'Not saved: ' + r.error);
+    if (r.ok) { unsaved = false; updateUnsaved(); say('Saved. Changes apply the next time the sim starts.'); }
+    else say('Not saved: ' + r.error);
   }
 });
 

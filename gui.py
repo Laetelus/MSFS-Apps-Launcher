@@ -43,9 +43,10 @@ class Api:
             return {"ok": False, "error": str(exc)}
 
     def browse_exe(self, folder=None):
-        folder = Path(folder) if folder and Path(folder).is_dir() else None
-        result = self._window.create_file_dialog(
-            webview.FileDialog.OPEN, file_types=("Programs (*.exe)",), directory=str(folder) if folder else None)
+        kwargs = {"file_types": ("Programs (*.exe)",)}
+        if folder and Path(folder).is_dir():
+            kwargs["directory"] = folder
+        result = self._window.create_file_dialog(webview.FileDialog.OPEN, **kwargs)
         return result[0] if result else None
 
 
