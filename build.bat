@@ -29,7 +29,7 @@ if errorlevel 1 goto failed
 
 echo.
 echo Building the exe...
-%PY% -m PyInstaller --noconfirm --onedir --noconsole --name MSFSLauncher launcher.py
+%PY% -m PyInstaller --noconfirm --onedir --noconsole --add-data "ui;ui" --collect-all SimConnect --name MSFSLauncher gui.py
 if errorlevel 1 goto failed
 
 echo.
