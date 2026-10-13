@@ -89,7 +89,6 @@ def _watch(ready, sim_is_running, fallback_seconds):
 
         value = _read(aq)
         if isinstance(value, (int, float)):
-            ever_valid = True
             bad = 0
             state = int(value)
             if state != last:

@@ -168,8 +168,7 @@ function chips(a) {
   const start = a.start === 'session'
     ? `<span class="chip a">After flight ready${d ? ' +' + d + ' s' : ''}</span>`
     : `<span class="chip a">${d ? 'After ' + d + ' s' : 'With sim'}</span>`;
-  const win = `<span class="chip">${val(a, 'window', 'minimized') === 'maximized' ? 'Maximized' : 'Minimized'}</span>`;
-  return start + win + (val(a, 'closeOnExit', true) ? '<span class="chip">Closes on exit</span>' : '');
+  return start + (val(a, 'closeOnExit', true) ? '<span class="chip">Closes on exit</span>' : '');
 }
 
 // Main render function - update both list and detail panel
@@ -181,7 +180,6 @@ const GAMES = [['MSFS 2024', 'FlightSimulator2024.exe', '24'], ['MSFS 2020', 'Fl
 const pickerHtml = () => `
   <div class="lbl">Choose your game</div>
   ${GAMES.map(([n, e, t]) => `<div class="card" data-game="${e}"><div class="tile">${t}</div><div class="nm"><b>${n}</b><span>${e}</span></div></div>`).join('')}
-  <div class="card" data-act="gamebrowse"><div class="tile">&hellip;</div><div class="nm"><b>Other program</b><span>Browse for a different exe</span></div></div>
   <div><button class="sec" data-act="gamecancel">Cancel</button></div>`;
 
 // Render the app list (left/center area)
@@ -223,17 +221,13 @@ function renderDetail() {
   $('#det').innerHTML = `
     <div class="dh"><div class="tile">${esc((a.name || '?')[0].toUpperCase())}</div>
       <div class="dt"><input class="title-in" id="f-name" value="${esc(a.name)}" aria-label="Name" spellcheck="false">
-        <span class="path" title="${esc(a.path)}">${esc(a.path)}</span></div>
-      <button class="sec" id="browse">Open</button></div>
+        <span class="path" title="${esc(a.path)}">${esc(a.path)}</span></div></div>
     <div class="fl"><span class="lbl">Start</span>
       ${seg('start', [['sim', 'With sim'], ['session', 'Flight ready']], session ? 'session' : 'sim')}
       <span class="hint">${session ? 'Starts once a flight has loaded and you are in the aircraft.' : 'Starts as soon as the sim is running.'}</span></div>
     <div class="fl"><label class="lbl" for="f-delay">Delay (seconds)</label>
       <div class="dl"><input class="num" id="f-delay" type="number" min="0" value="${d}"><div class="spins"><button type="button" data-spin="up">▲</button><button type="button" data-spin="down">▼</button></div></div>
       <span class="hint">${session ? 'Counted from when the flight is ready.' : 'Counted from when the sim starts, not from the previous app.'}</span></div>
-    <div class="fl"><span class="lbl">Window</span>
-      ${seg('window', [['minimized', 'Minimized'], ['maximized', 'Maximized']], val(a, 'window', 'minimized'))}
-      <span class="hint">Apps start minimized unless you choose Maximized.</span></div>
     <div class="fl"><span class="lbl">Behavior</span>
       ${toggle('closeOnExit', 'Close when sim exits', val(a, 'closeOnExit', true))}
     <div class="fl"><label class="lbl" for="f-args">Launch arguments</label>
@@ -259,10 +253,9 @@ document.addEventListener('click', async e => {
   if (d.en !== undefined) { const x = cfg.apps[+d.en]; x.enabled = !val(x, 'enabled', true); touch(); render(); return; }
   // Toggle behavior flags
   if (d.flag) { a[d.flag] = !val(a, d.flag, true); touch(); render(); return; }
-  // Segmented control buttons (start type, window state)
+  // Segmented control buttons (start type)
   if (d.set) {
     if (d.set === 'start') { if (d.v === 'session') a.start = 'session'; else delete a.start; }
-    else a[d.set] = d.v;
     touch(); render(); return;
   }
   // Click on app card to select it
@@ -274,8 +267,6 @@ document.addEventListener('click', async e => {
     cfg.apps.push({ name: p.split(/[\\/]/).pop().replace(/\.exe$/i, ''), path: p, delay: 0, closeOnExit: true });
     sel = cfg.apps.length - 1; touch(); render(); return;
   }
-  // Browse button - change app path
-  if (t.id === 'browse') { const folder = a.path.split(/[\\/]/).slice(0, -1).join('/'); const p = await pywebview.api.browse_exe(folder); if (p) { if (cfg.apps.some((app, i) => i !== sel && app.path === p)) { say('This app is already in the list'); return; } a.path = p; touch(); render(); } return; }
   // Remove button - delete app
   if (t.id === 'remove') { cfg.apps.splice(sel, 1); sel = Math.min(sel, cfg.apps.length - 1); touch(); render(); return; }
   // Save button - write config to file
