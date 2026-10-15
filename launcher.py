@@ -124,14 +124,36 @@ def main():
         log.info("No config at %s. Open the GUI, add a game and apps, and save.", CONFIG)
         return
     cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
+    
     # Allow override via environment variable or command-line argument (useful for development)
-    sim = ARGS.sim or os.environ.get("MSFS_LAUNCHER_SIM") or cfg.get("sim")
+    sim = ARGS.sim or os.environ.get("MSFS_LAUNCHER_SIM")
+    
     if not sim:
-        log.info("No game configured. Open the GUI and add a game.")
-        return
+        # Auto-detect which game is running
+        profiles = cfg.get("profiles", {})
+        if not profiles:
+            log.info("No games configured. Open the GUI and add a game.")
+            return
+        
+        # Check which game process is running
+        for game_exe in profiles.keys():
+            if is_running(game_exe):
+                sim = game_exe
+                break
+        else:
+            log.info("No configured game is currently running. Available: %s", list(profiles.keys()))
+            return
+    
     log.info("using sim: %s (source: %s)", sim, 
-             "CLI arg" if ARGS.sim else ("env var" if os.environ.get("MSFS_LAUNCHER_SIM") else "config file"))
-    apps = [a for a in cfg["apps"] if a.get("enabled", True)]
+             "CLI arg" if ARGS.sim else ("env var" if os.environ.get("MSFS_LAUNCHER_SIM") else "auto-detect"))
+    
+    # Load the profile for this game
+    profile = cfg.get("profiles", {}).get(sim)
+    if not profile:
+        log.info("No profile for %s. Configure it in the GUI.", sim)
+        return
+    
+    apps = [a for a in profile.get("apps", []) if a.get("enabled", True)]
     session_apps = sorted((a for a in apps if a.get("start") == "session"),
                           key=lambda a: a.get("delay", 0))
     apps = sorted((a for a in apps if a.get("start") != "session"),

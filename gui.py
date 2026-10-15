@@ -28,15 +28,20 @@ class Api:
     def __init__(self, path):
         self._path = Path(path)
         self._window = None   # underscore: not exposed to the page
+        self._cfg = None
 
     def get_config(self):
-        return config.load(self._path)
+        """Load full config with all profiles."""
+        self._cfg = config.load(self._path)
+        return self._cfg
 
     def config_path(self):
         return str(self._path)
 
     def save_config(self, cfg):
+        """Save the updated config."""
         try:
+            self._cfg = cfg
             config.save(self._path, cfg)
             return {"ok": True}
         except Exception as exc:

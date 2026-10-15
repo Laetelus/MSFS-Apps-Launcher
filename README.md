@@ -1,5 +1,7 @@
 # MSFS App Launcher
 
+> ⚠️ **In Development** — This project is still under development. Bugs and issues are expected.
+
 Starts your Microsoft Flight Simulator companion apps automatically when the sim starts, minimizes them, and closes them when the sim exits. Apps can also be held back until a flight is actually loaded (cockpit or external view) instead of starting in the main menu.
 
 Configure your apps using the built-in GUI, or edit `apps.json` manually for advanced use.
@@ -7,7 +9,7 @@ Configure your apps using the built-in GUI, or edit `apps.json` manually for adv
 # Requirements
 
 - Windows
-- Python 3.12 from the official site: <https://www.python.org/downloads/>. On the first screen of the installer, **tick "Add python.exe to PATH"** before clicking Install.
+- Python 3.12 from the official site: <https://www.python.org/downloads/>. Make sure to **tick "Add python.exe to PATH"**.
 - The SimConnect package (only needed for apps that use `"start": "session"`):
 
 ```
@@ -38,34 +40,47 @@ If SimConnect is not installed, session apps start immediately instead of waitin
 
    Only one launcher entry should be active at a time. If two are, or an old one is left over, the second copy exits (see "Things to know").
 
-3. **Run the GUI** by double-clicking `GUI.py` in your launcher folder. On first run, it will create `apps.json`.
+3. **Run the GUI** by double-clicking `gui.py` in your launcher folder. On first run, it will create `apps.json`.
 4. **Add your games and apps** in the GUI. For each game, select the sim executable, then add your companion apps. You can configure launch behavior (delay, window state, close on exit, etc.) for each app.
 5. **Save your configuration** in the GUI. Changes apply the next time you start the sim.
 
 ## apps.json
 
+The launcher supports **separate profiles for each game** (MSFS 2024 and MSFS 2020). You can configure different apps for each game using the GUI.
+
 ```json
 {
-  "sim": "FlightSimulator2024.exe",
-  "apps": [
-    {
-      "name": "My App",
-      "path": "C:/Program Files/MyApp/MyApp.exe",
-      "delay": 0,
-      "closeOnExit": true
+  "lastGame": "FlightSimulator2024.exe",
+  "profiles": {
+    "FlightSimulator2024.exe": {
+      "apps": [
+        {
+          "name": "TouchdownFX",
+          "path": "C:/Program Files/TouchdownFX/TouchdownFX.exe",
+          "delay": 0,
+          "closeOnExit": true,
+          "enabled": true
+        },
+        {
+          "name": "My Weather Tool",
+          "path": "C:/Program Files/Weather/Weather.exe",
+          "delay": 5,
+          "closeOnExit": true,
+          "start": "session",
+          "enabled": true
+        }
+      ]
     },
-    {
-      "name": "My Weather Tool",
-      "path": "C:/Program Files/Weather/Weather.exe",
-      "delay": 0,
-      "closeOnExit": true,
-      "start": "session"
+    "FlightSimulator.exe": {
+      "apps": []
     }
-  ]
+  }
 }
 ```
 
-Use forward slashes in paths (`C:/like/this`). For `"sim"`, use `FlightSimulator2024.exe` for MSFS 2024 or `FlightSimulator.exe` for MSFS 2020.
+Use forward slashes in paths (`C:/like/this`). Game executables are:
+- `FlightSimulator2024.exe` for MSFS 2024
+- `FlightSimulator.exe` for MSFS 2020
 
 Per app:
 
@@ -140,4 +155,4 @@ The launcher treats whatever `"sim"` names as the sim. To try it with Notepad:
 
 SimConnect never connects in this setup, so `"start": "session"` apps fall back to the timer. Test the camera-state logic with the real sim.
 
-Check `launcher.log` for what happened. Set `"sim"` back before using it for real.
+Check `launcher.log` for what happened. Set `"sim"` back before using it for real.e

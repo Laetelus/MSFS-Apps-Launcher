@@ -1,0 +1,475 @@
+/* Color scheme variables */
+:root {
+  --bg: #0D1217;
+  --panel: #131A21;
+  --side: #0F161C;
+  --text: #E8EEF3;
+  --mute: #93A2B1;
+  --acc: #4CC2FF;
+}
+
+/* Global styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px 'Segoe UI', system-ui, sans-serif;
+}
+
+button, input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ===== LEFT SIDEBAR ===== */
+.side {
+  width: 216px;
+  flex: none;
+  background: #0A0F13;
+  border-right: 1px solid #1B252E;
+  padding: 24px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 17px;
+  padding: 0 8px 20px;
+}
+
+.game {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: #17212A;
+  font-weight: 500;
+}
+
+.game small {
+  color: var(--mute);
+}
+
+/* Dashed "Add game" / "Change game" button */
+.ghost {
+  height: 42px;
+  border: 1px dashed #2A3744;
+  border-radius: 9px;
+  background: none;
+  color: var(--mute);
+}
+
+/* ===== MAIN CONTENT AREA ===== */
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 26px 28px 18px;
+  gap: 16px;
+}
+
+/* Header with title and Add button */
+.hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.sub {
+  color: var(--mute);
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+/* Inline input for sim executable name */
+.inline {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid #2A3744;
+  color: var(--text);
+  width: 230px;
+  padding: 0 2px;
+}
+
+.inline:focus,
+.title-in:focus {
+  outline: none;
+  border-color: var(--acc);
+}
+
+/* Labels for form fields */
+.lbl {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+/* Regular text input box */
+.inp {
+  height: 38px;
+  border-radius: 9px;
+  border: 1px solid #2A3744;
+  background: #0A0F13;
+  padding: 0 12px;
+  width: 100%;
+}
+
+/* Primary button (blue) - used for Save and Add buttons */
+.pri {
+  height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--acc);
+  color: #04121A;
+  font-weight: 600;
+}
+
+/* Secondary button (outline) - used for Browse and Remove buttons */
+.sec {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 9px;
+  border: 1px solid #2A3744;
+  background: transparent;
+}
+
+/* ===== APP LIST SECTION ===== */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  flex: 1;
+}
+
+/* Each app card in the list */
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  padding: 8px 14px 8px 10px;
+  background: var(--panel);
+  border: 1px solid #1E2933;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.card.sel {
+  border-color: var(--acc);
+  background: #15202A;
+}
+
+.card.off {
+  opacity: 0.55;
+}
+
+/* Card states during drag and drop */
+.card.drag {
+  opacity: 0.4;
+}
+
+.card.over {
+  border-color: #7DD3FF;
+  border-style: dashed;
+}
+
+/* Drag handle icon on left side of card */
+.grip {
+  color: #5C6B79;
+  cursor: grab;
+  flex: none;
+  display: flex;
+}
+
+/* Colored circle with app initial */
+.tile {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #1E2A35;
+  color: var(--acc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  flex: none;
+}
+
+/* App name and path display */
+.nm {
+  flex: 1;
+  min-width: 0;
+}
+
+.nm b {
+  display: block;
+}
+
+.nm span,
+.path {
+  display: block;
+  color: var(--mute);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Small tags showing app properties (start time, window state, close on exit) */
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.chip {
+  padding: 4px 10px;
+  border-radius: 13px;
+  background: #1B2630;
+  color: #B7C4D0;
+  font-size: 12px;
+}
+
+.chip.a {
+  background: #10303F;
+  color: #7DD3FF;
+}
+
+/* Toggle switch (enable/disable app) */
+.tog {
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  background: #2A3744;
+  border: 0;
+  position: relative;
+  padding: 0;
+  flex: none;
+}
+
+.tog i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.tog.on {
+  background: var(--acc);
+}
+
+.tog.on i {
+  left: 21px;
+}
+
+/* Footer with status message and Save button */
+.ft {
+  display: flex;
+  justify-content: space-between;
+  color: var(--mute);
+  font-size: 12px;
+  align-items: center;
+  gap: 12px;
+}
+
+.ft.unsaved {
+  color: #FF8A7A;
+  font-weight: 600;
+}
+
+/* ===== RIGHT DETAILS PANEL ===== */
+.det {
+  width: 340px;
+  flex: none;
+  background: var(--side);
+  border-left: 1px solid #1B252E;
+  padding: 24px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow: auto;
+}
+
+/* App header in details panel (icon + name + browse button) */
+.dh {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dt {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Editable app name field */
+.title-in {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 18px;
+  width: 100%;
+  padding: 2px 0;
+}
+
+/* Field container with label and input */
+.fl {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Row layout for buttons */
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+/* Segmented control buttons (e.g., "With sim" / "Flight ready") */
+.seg {
+  display: flex;
+  background: #0A0F13;
+  border: 1px solid #1E2933;
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.seg button {
+  flex: 1;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--mute);
+}
+
+.seg button.on {
+  background: #1E2A35;
+  color: #fff;
+}
+
+/* Delay input container */
+.dl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dl input[type=range] {
+  flex: 1;
+  accent-color: #4CC2FF;
+}
+
+/* Number input for delay in seconds */
+.num {
+  width: 150px;
+  height: 38px;
+  border-radius: 9px;
+  border: 1px solid #2A3744;
+  background: #0A0F13;
+  padding: 0 10px;
+  text-align: right;
+}
+
+/* Hide default number spinners */
+.num::-webkit-outer-spin-button,
+.num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.num[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Spinner button group next to number input */
+.spins {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.spins button {
+  width: 24px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid #2A3744;
+  background: #0A0F13;
+  color: var(--mute);
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.spins button:hover {
+  background: #1E2A35;
+  color: var(--text);
+}
+
+/* Option row with label and toggle */
+.opt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 36px;
+}
+
+/* Help text below fields */
+.hint {
+  color: var(--mute);
+  font-size: 12px;
+}
+
+/* Danger/delete button styling */
+.dng {
+  color: #FF8A7A;
+  border-color: #4A2A2A;
+}
+
+/* Empty state message */
+.empty {
+  color: var(--mute);
+  padding: 24px;
+  text-align: center;
+}
