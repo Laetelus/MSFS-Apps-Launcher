@@ -106,28 +106,6 @@ The launcher watches the sim's camera state through SimConnect. When the camera 
 - Session apps start once per sim run (see above).
 - The camera-state values used to detect a flight were observed on MSFS 2024 and are not all verified. If an app starts too early, check the `camera state` lines in the log.
 
-# Roadmap
-
-Done:
-
-- [x] Launch apps when the sim starts (via exe.xml, no manual step)
-- [x] Per-app delay
-- [x] Start apps minimized (or maximized)
-- [x] Close apps when the sim exits
-- [x] Runs as administrator so elevated apps can be closed
-- [x] "Start when session loaded" option
-- [x] Single-instance guard
-- [x] GUI to add, remove, reorder, and configure apps
-
-Planned updates:
-
-- [ ] Tray icon so it is visible while running, with a menu to open the log or quit
-- [ ] Explanatory text for every option in the GUI (tooltips)
-- [ ] First-run setup that finds `exe.xml` and adds the launcher entry for you
-- [ ] Pre-built exe as a GitHub release (zip package with first-run setup, no Python required)
-- [ ] Support for MSFS 2020 and 2024 side by side
-- [ ] Clearer logging, for example a warning when an app quits right after launching
-
 # Development
 
 ## Testing with the real MSFS
