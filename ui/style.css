@@ -1,8 +1,8 @@
 /* Color scheme variables */
 :root {
-  --bg: #0D1217;
-  --panel: #131A21;
-  --side: #0F161C;
+  --bg: #0a1628;
+  --panel: rgba(19, 26, 33, 0.4);
+  --side: rgba(15, 22, 28, 0.35);
   --text: #E8EEF3;
   --mute: #93A2B1;
   --acc: #4CC2FF;
@@ -17,7 +17,8 @@ body {
   margin: 0;
   height: 100vh;
   display: flex;
-  background: var(--bg);
+  background: linear-gradient(135deg, #0a1628 0%, #1a2a3f 25%, #2d1b45 75%, #1f2532 100%);
+  background-attachment: fixed;
   color: var(--text);
   font: 14px 'Segoe UI', system-ui, sans-serif;
 }
@@ -39,8 +40,9 @@ button {
 .side {
   width: 216px;
   flex: none;
-  background: #0A0F13;
-  border-right: 1px solid #1B252E;
+  background: linear-gradient(180deg, rgba(15, 22, 28, 0.4) 0%, rgba(15, 22, 28, 0.25) 100%);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(91, 149, 192, 0.2);
   padding: 24px 14px;
   display: flex;
   flex-direction: column;
@@ -62,9 +64,12 @@ button {
   align-items: center;
   height: 42px;
   padding: 0 12px;
-  border-radius: 9px;
-  background: #17212A;
+  border-radius: 12px;
+  background: rgba(23, 33, 42, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(91, 149, 192, 0.2);
   font-weight: 500;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .game small {
@@ -74,10 +79,16 @@ button {
 /* Dashed "Add game" / "Change game" button */
 .ghost {
   height: 42px;
-  border: 1px dashed #2A3744;
-  border-radius: 9px;
-  background: none;
+  border: 1px dashed rgba(91, 149, 192, 0.3);
+  border-radius: 12px;
+  background: rgba(23, 33, 42, 0.3);
   color: var(--mute);
+  transition: all 0.3s ease;
+}
+
+.ghost:hover {
+  background: rgba(76, 194, 255, 0.1);
+  border-color: rgba(91, 149, 192, 0.5);
 }
 
 /* ===== MAIN CONTENT AREA ===== */
@@ -114,10 +125,11 @@ h1 {
 .inline {
   background: none;
   border: 0;
-  border-bottom: 1px solid #2A3744;
+  border-bottom: 1px solid rgba(91, 149, 192, 0.3);
   color: var(--text);
   width: 230px;
   padding: 0 2px;
+  transition: all 0.3s ease;
 }
 
 .inline:focus,
@@ -138,11 +150,21 @@ h1 {
 /* Regular text input box */
 .inp {
   height: 38px;
-  border-radius: 9px;
-  border: 1px solid #2A3744;
-  background: #0A0F13;
+  border-radius: 10px;
+  border: 1px solid rgba(91, 149, 192, 0.2);
+  background: rgba(10, 15, 19, 0.4);
+  backdrop-filter: blur(10px);
   padding: 0 12px;
   width: 100%;
+  color: var(--text);
+  transition: all 0.3s ease;
+}
+
+.inp:focus {
+  outline: none;
+  border-color: rgba(76, 194, 255, 0.5);
+  background: rgba(10, 15, 19, 0.6);
+  box-shadow: 0 0 15px rgba(76, 194, 255, 0.2);
 }
 
 /* Primary button (blue) - used for Save and Add buttons */
@@ -150,19 +172,35 @@ h1 {
   height: 40px;
   padding: 0 18px;
   border: 0;
-  border-radius: 9px;
-  background: var(--acc);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4CC2FF 0%, #2a9dd5 100%);
   color: #04121A;
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(76, 194, 255, 0.3);
+}
+
+.pri:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 194, 255, 0.4);
+}
+
+.pri:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Secondary button (outline) - used for Browse and Remove buttons */
 .sec {
   height: 38px;
   padding: 0 14px;
-  border-radius: 9px;
-  border: 1px solid #2A3744;
-  background: transparent;
+  border-radius: 10px;
+  border: 1px solid rgba(91, 149, 192, 0.3);
+  background: rgba(10, 15, 19, 0.3);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 /* ===== APP LIST SECTION ===== */
@@ -172,6 +210,29 @@ h1 {
   gap: 10px;
   overflow: auto;
   flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(76, 194, 255, 0.2) transparent;
+}
+
+/* Custom scrollbar styling for Chrome/Edge */
+.list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.list::-webkit-scrollbar-thumb {
+  background: rgba(76, 194, 255, 0.2);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.list::-webkit-scrollbar-thumb:hover {
+  background: rgba(76, 194, 255, 0.35);
+  background-clip: padding-box;
 }
 
 /* Each app card in the list */
@@ -181,19 +242,51 @@ h1 {
   gap: 12px;
   min-height: 62px;
   padding: 8px 14px 8px 10px;
-  background: var(--panel);
-  border: 1px solid #1E2933;
-  border-radius: 12px;
+  background: rgba(19, 26, 33, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(91, 149, 192, 0.2);
+  border-radius: 14px;
   cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  background: rgba(19, 26, 33, 0.45);
+  border-color: rgba(91, 149, 192, 0.35);
 }
 
 .card.sel {
   border-color: var(--acc);
-  background: #15202A;
+  background: rgba(76, 194, 255, 0.15);
+  box-shadow: 0 4px 20px rgba(76, 194, 255, 0.2);
 }
 
 .card.off {
-  opacity: 0.55;
+  opacity: 0.45;
+  filter: grayscale(0.6);
+  border-color: rgba(255, 138, 122, 0.3) !important;
+  background: rgba(255, 138, 122, 0.08) !important;
+}
+
+.card.off .tog {
+  margin-left: auto;
+}
+
+.card.off::after {
+  content: 'DISABLED';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(255, 138, 122, 0.7);
+  text-transform: uppercase;
+  pointer-events: none;
 }
 
 /* Card states during drag and drop */
@@ -232,10 +325,14 @@ h1 {
 .nm {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .nm b {
   display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nm span,
@@ -252,21 +349,28 @@ h1 {
 .chips {
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex-wrap: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+  margin: 0 8px;
 }
 
 .chip {
   padding: 4px 10px;
-  border-radius: 13px;
-  background: #1B2630;
+  border-radius: 14px;
+  background: rgba(27, 38, 48, 0.5);
+  backdrop-filter: blur(10px);
   color: #B7C4D0;
   font-size: 12px;
+  border: 1px solid rgba(91, 149, 192, 0.15);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .chip.a {
-  background: #10303F;
+  background: rgba(16, 48, 63, 0.5);
   color: #7DD3FF;
+  border-color: rgba(125, 211, 255, 0.3);
 }
 
 /* Toggle switch (enable/disable app) */
@@ -274,11 +378,14 @@ h1 {
   width: 42px;
   height: 24px;
   border-radius: 12px;
-  background: #2A3744;
-  border: 0;
+  background: rgba(42, 55, 68, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(91, 149, 192, 0.2);
   position: relative;
   padding: 0;
   flex: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .tog i {
@@ -289,10 +396,12 @@ h1 {
   height: 18px;
   border-radius: 50%;
   background: #fff;
+  transition: all 0.3s ease;
 }
 
 .tog.on {
-  background: var(--acc);
+  background: rgba(76, 194, 255, 0.3);
+  border-color: rgba(76, 194, 255, 0.5);
 }
 
 .tog.on i {
@@ -318,13 +427,15 @@ h1 {
 .det {
   width: 340px;
   flex: none;
-  background: var(--side);
-  border-left: 1px solid #1B252E;
+  background: linear-gradient(180deg, rgba(15, 22, 28, 0.4) 0%, rgba(15, 22, 28, 0.25) 100%);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(91, 149, 192, 0.2);
   padding: 24px 22px;
   display: flex;
   flex-direction: column;
   gap: 18px;
   overflow: auto;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.2);
 }
 
 /* App header in details panel (icon + name + browse button) */
@@ -367,9 +478,10 @@ h1 {
 /* Segmented control buttons (e.g., "With sim" / "Flight ready") */
 .seg {
   display: flex;
-  background: #0A0F13;
-  border: 1px solid #1E2933;
-  border-radius: 10px;
+  background: rgba(10, 15, 19, 0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(91, 149, 192, 0.2);
+  border-radius: 11px;
   padding: 3px;
   gap: 2px;
 }
@@ -378,14 +490,18 @@ h1 {
   flex: 1;
   height: 34px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 9px;
   background: none;
   color: var(--mute);
+  transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .seg button.on {
-  background: #1E2A35;
+  background: rgba(76, 194, 255, 0.2);
+  backdrop-filter: blur(10px);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(76, 194, 255, 0.2);
 }
 
 /* Delay input container */
@@ -404,11 +520,20 @@ h1 {
 .num {
   width: 150px;
   height: 38px;
-  border-radius: 9px;
-  border: 1px solid #2A3744;
-  background: #0A0F13;
+  border-radius: 10px;
+  border: 1px solid rgba(91, 149, 192, 0.2);
+  background: rgba(10, 15, 19, 0.4);
+  backdrop-filter: blur(10px);
   padding: 0 10px;
   text-align: right;
+  color: var(--text);
+  transition: all 0.3s ease;
+}
+
+.num:focus {
+  outline: none;
+  border-color: rgba(76, 194, 255, 0.5);
+  background: rgba(10, 15, 19, 0.6);
 }
 
 /* Hide default number spinners */
@@ -433,18 +558,21 @@ h1 {
   width: 24px;
   height: 16px;
   padding: 0;
-  border: 1px solid #2A3744;
-  background: #0A0F13;
+  border: 1px solid rgba(91, 149, 192, 0.2);
+  background: rgba(10, 15, 19, 0.4);
+  backdrop-filter: blur(10px);
   color: var(--mute);
   font-size: 11px;
   line-height: 1;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .spins button:hover {
-  background: #1E2A35;
+  background: rgba(76, 194, 255, 0.15);
   color: var(--text);
+  border-color: rgba(76, 194, 255, 0.4);
 }
 
 /* Option row with label and toggle */
