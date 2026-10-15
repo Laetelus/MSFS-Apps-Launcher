@@ -9,7 +9,7 @@ Configure your apps using the built-in GUI, or edit `apps.json` manually for adv
 # Requirements
 
 - Windows
-- Python 3.12 from the official site: <https://www.python.org/downloads/>. Make sure to **tick "Add python.exe to PATH"**.
+- Python from the official site: <https://www.python.org/downloads/>. Make sure to **tick "Add python.exe to PATH"**.
 - The SimConnect package (only needed for apps that use `"start": "session"`):
 
 ```
