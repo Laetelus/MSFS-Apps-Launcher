@@ -5,7 +5,8 @@ let cfg = null,           // Full config object with all profiles
     sel = -1,             // Currently selected app index in the current profile
     dragFrom = -1,        // Track drag-and-drop source index
     picking = false,      // True while the "choose your game" list is showing
-    unsaved = false;      // True when there are unsaved changes
+    unsaved = false,      // True when there are unsaved changes
+    pathValidity = {};    // Cache of path validity checks {path: true/false}
 
 // Helper functions
 const $ = s => document.querySelector(s);  // Shorthand for querySelector
@@ -23,6 +24,18 @@ const simLabel = s => !s ? '' : /2024/.test(s) ? 'MSFS 2024' : /^FlightSimulator
 const profile = () => cfg.profiles[curGame] || null;
 const GRIP = '<svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.5"/><circle cx="10" cy="4" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="10" cy="14" r="1.5"/></svg>';  // SVG for drag handle
 
+// Check if all app paths exist
+async function checkAllPaths() {
+  const prof = profile();
+  if (!prof || !prof.apps) return;
+  
+  for (const app of prof.apps) {
+    if (app.path && !(app.path in pathValidity)) {
+      pathValidity[app.path] = await pywebview.api.check_path_exists(app.path);
+    }
+  }
+}
+
 /* ===== INITIALIZATION ===== */
 // When page loads and connects to Python backend
 window.addEventListener('pywebviewready', async () => {
@@ -35,6 +48,7 @@ window.addEventListener('pywebviewready', async () => {
   } else {
     sel = -1;
   }
+  await checkAllPaths();  // Check all paths for validity
   render();  // Display everything
 });
 
@@ -49,7 +63,11 @@ function chips(a) {
 }
 
 // Main render function - update both list and detail panel
-function render() { renderList(); renderDetail(); }
+async function render() { 
+  await checkAllPaths();
+  renderList();
+  renderDetail();
+}
 
 // "Choose your game" list. Known games need no file picker (Windows blocks selecting
 // the exe inside Xbox / Game Pass install folders), so their process names are built in.
@@ -82,14 +100,17 @@ function renderList() {
   $('#gname').textContent = label;
   $('#gcount').textContent = n;
   $('#count').textContent = n + ' app' + (n === 1 ? '' : 's') + ' \u00b7 launch order';
-  $('#list').innerHTML = n ? prof.apps.map((a, i) => `
-    <div class="card ${i === sel ? 'sel' : ''} ${val(a, 'enabled', true) ? '' : 'off'}" data-i="${i}" draggable="true">
+  $('#list').innerHTML = n ? prof.apps.map((a, i) => {
+    const isInvalid = !pathValidity[a.path];
+    return `
+    <div class="card ${i === sel ? 'sel' : ''} ${val(a, 'enabled', true) ? '' : 'off'} ${isInvalid ? 'invalid' : ''}" data-i="${i}" draggable="true">
       <span class="grip" title="Drag to reorder">${GRIP}</span>
       <div class="tile">${esc((a.name || '?')[0].toUpperCase())}</div>
-      <div class="nm"><b>${esc(a.name)}</b><span>${esc(a.path)}</span></div>
+      <div class="nm"><b>${esc(a.name)}</b><span title="${esc(a.path)}">${esc(a.path)}</span></div>
       <div class="chips">${chips(a)}</div>
       <button class="tog ${val(a, 'enabled', true) ? 'on' : ''}" data-en="${i}" aria-label="Enabled" aria-pressed="${val(a, 'enabled', true)}"><i></i></button>
-    </div>`).join('') : '<div class="empty">No apps yet. Click "Add app" to pick one.</div>';
+    </div>`;
+  }).join('') : '<div class="empty">No apps yet. Click "Add app" to pick one.</div>';
 }
 
 // Helper to create segmented control buttons
@@ -129,8 +150,8 @@ document.addEventListener('click', async e => {
   const a = prof ? prof.apps[sel] : null;
   
   // Add or change the game
-  if (t.dataset.act === 'addgame') { picking = true; render(); return; }
-  if (t.dataset.act === 'gamecancel') { picking = false; render(); return; }
+  if (t.dataset.act === 'addgame') { picking = true; await render(); return; }
+  if (t.dataset.act === 'gamecancel') { picking = false; await render(); return; }
   if (t.dataset.game || t.dataset.act === 'gamebrowse') {
     let exe = t.dataset.game;
     if (!exe) { const p = await pywebview.api.browse_exe(); if (!p) return; exe = p.split(/[\\/]/).pop(); }
@@ -147,32 +168,32 @@ document.addEventListener('click', async e => {
     sel = cfg.profiles[exe].apps.length ? 0 : -1;
     picking = false;
     touch();
-    render();
+    await render();
     return;
   }
   
   if (!prof) return;  // Need a profile for the rest
   
   // Toggle app enabled/disabled
-  if (t.dataset.en !== undefined) { const x = prof.apps[+t.dataset.en]; x.enabled = !val(x, 'enabled', true); touch(); render(); return; }
+  if (t.dataset.en !== undefined) { const x = prof.apps[+t.dataset.en]; x.enabled = !val(x, 'enabled', true); touch(); await render(); return; }
   // Toggle behavior flags
-  if (t.dataset.flag) { a[t.dataset.flag] = !val(a, t.dataset.flag, true); touch(); render(); return; }
+  if (t.dataset.flag) { a[t.dataset.flag] = !val(a, t.dataset.flag, true); touch(); await render(); return; }
   // Segmented control buttons (start type)
   if (t.dataset.set) {
     if (t.dataset.set === 'start') { if (t.dataset.v === 'session') a.start = 'session'; else delete a.start; }
-    touch(); render(); return;
+    touch(); await render(); return;
   }
   // Click on app card to select it
-  if (t.dataset.i !== undefined) { sel = +t.dataset.i; render(); return; }
+  if (t.dataset.i !== undefined) { sel = +t.dataset.i; await render(); return; }
   // Add new app button
   if (t.id === 'add') {
     const p = await pywebview.api.browse_exe(); if (!p) return;
     if (prof.apps.some(app => app.path === p)) { say('This app is already in the list'); return; }
     prof.apps.push({ name: p.split(/[\\/]/).pop().replace(/\.exe$/i, ''), path: p, delay: 0, closeOnExit: true });
-    sel = prof.apps.length - 1; touch(); render(); return;
+    sel = prof.apps.length - 1; touch(); await render(); return;
   }
   // Remove button - delete app
-  if (t.id === 'remove') { prof.apps.splice(sel, 1); sel = Math.min(sel, prof.apps.length - 1); touch(); render(); return; }
+  if (t.id === 'remove') { prof.apps.splice(sel, 1); sel = Math.min(sel, prof.apps.length - 1); touch(); await render(); return; }
   // Save button - write config to file
   if (t.id === 'save') {
     if (!curGame) { say('Add a game first.'); return; }
@@ -183,7 +204,7 @@ document.addEventListener('click', async e => {
 });
 
 // Handle text input changes
-document.addEventListener('input', e => {
+document.addEventListener('input', async e => {
   if (!cfg) return;
   const prof = profile();
   if (!prof) return;
@@ -202,11 +223,11 @@ document.addEventListener('input', e => {
     if (id === 'f-range') $('#f-delay').value = a.delay; else $('#f-range').value = Math.min(a.delay, 300);
   } else return;
   
-  touch(); renderList();   // list only, so the field keeps focus
+  touch(); await renderList();   // list only, so the field keeps focus
 });
 
 // Handle spinner buttons
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
   if (e.target.closest('[data-spin]')) {
     e.preventDefault(); e.stopPropagation();
     const btn = e.target.closest('[data-spin]'), inp = $('#f-delay'), prof = profile(), a = prof ? prof.apps[sel] : null;
@@ -214,7 +235,7 @@ document.addEventListener('click', e => {
     const delta = btn.dataset.spin === 'up' ? 1 : -1;
     inp.value = Math.max(0, parseInt(inp.value, 10) + delta);
     a.delay = Math.max(0, parseInt(inp.value, 10));
-    touch(); renderList();
+    touch(); await renderList();
   }
 }, true);
 
@@ -235,7 +256,7 @@ document.addEventListener('dragover', e => {
 });
 
 // Drop to reorder
-document.addEventListener('drop', e => {
+document.addEventListener('drop', async e => {
   const c = e.target.closest('.card'); if (!c || dragFrom < 0) return;
   e.preventDefault();
   const to = +c.dataset.i;
@@ -247,4 +268,4 @@ document.addEventListener('drop', e => {
 });
 
 // End drag
-document.addEventListener('dragend', () => { dragFrom = -1; if (cfg) render(); });
+document.addEventListener('dragend', async () => { dragFrom = -1; if (cfg) await render(); });

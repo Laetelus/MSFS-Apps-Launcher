@@ -54,6 +54,12 @@ class Api:
         result = self._window.create_file_dialog(webview.FileDialog.OPEN, **kwargs)
         return result[0] if result else None
 
+    def check_path_exists(self, path):
+        """Check if a file path exists."""
+        if not path:
+            return False
+        return Path(path).exists()
+
 
 def main():
     parser = argparse.ArgumentParser()

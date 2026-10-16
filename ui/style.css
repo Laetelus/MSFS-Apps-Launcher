@@ -289,6 +289,23 @@ h1 {
   pointer-events: none;
 }
 
+.card.invalid {
+  border-color: rgba(255, 87, 87, 0.5) !important;
+  background: rgba(255, 87, 87, 0.12) !important;
+}
+
+.card.invalid .nm span {
+  color: rgba(255, 87, 87, 0.8);
+}
+
+.card.invalid::before {
+  content: '⚠';
+  display: inline-block;
+  margin-right: 6px;
+  color: rgba(255, 87, 87, 0.9);
+  font-size: 16px;
+}
+
 /* Card states during drag and drop */
 .card.drag {
   opacity: 0.4;
@@ -343,6 +360,44 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: relative;
+}
+
+.card.invalid .nm span {
+  cursor: help;
+}
+
+.card.invalid .nm span:hover::after {
+  content: 'APP cannot be located';
+  position: absolute;
+  bottom: 125%;
+  left: 0;
+  right: 0;
+  background: rgba(255, 87, 87, 0.95);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(255, 87, 87, 0.4);
+  border: 1px solid rgba(255, 87, 87, 0.6);
+}
+
+.card.invalid .nm span:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 119%;
+  left: 8px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgba(255, 87, 87, 0.95);
+  z-index: 1000;
+  pointer-events: none;
 }
 
 /* Small tags showing app properties (start time, window state, close on exit) */
