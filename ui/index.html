@@ -16,6 +16,14 @@
   <div class="game" id="game" hidden><span id="gname"></span><small id="gcount"></small></div>
   <!-- Pick the game's exe; its file name is used as the process to watch for -->
   <button class="ghost" data-act="addgame" id="addgame">+ Add game</button>
+  <!-- LOGS PANEL - Live activity logs -->
+  <div class="logs-panel" id="logspanel">
+    <div class="logs-header">
+      <div class="logs-title">Activity Log</div>
+      <button class="logs-close" id="logstoggle" aria-label="Toggle logs">−</button>
+    </div>
+    <div class="logs-content" id="logscontent"></div>
+  </div>
 </div>
 
 <!-- MAIN CONTENT AREA - App list and controls -->

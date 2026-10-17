@@ -20,6 +20,26 @@ const updateUnsaved = () => { $('#ft').classList.toggle('unsaved', unsaved); $('
 const touch = () => { unsaved = true; say('Unsaved changes'); updateUnsaved(); };  // Mark as modified
 const simLabel = s => !s ? '' : /2024/.test(s) ? 'MSFS 2024' : /^FlightSimulator\.exe$/i.test(s) ? 'MSFS 2020' : s.replace(/\.exe$/i, '');  // Display name for a game
 
+// Logging functions
+const renderLogs = async () => {
+  const logs = await pywebview.api.get_launcher_logs(50);
+  const content = $('#logscontent');
+  
+  // Check if we're at the bottom before updating
+  const wasAtBottom = content.scrollHeight - content.scrollTop <= content.clientHeight + 10;
+  
+  content.innerHTML = logs.map(log => `
+    <div class="log-entry info">
+      <span class="log-time">${esc(log.time)}</span>
+      <span class="log-msg">${esc(log.msg)}</span>
+    </div>`).join('');
+  
+  // Only auto-scroll if we were already at the bottom
+  if (wasAtBottom) {
+    content.scrollTop = content.scrollHeight;
+  }
+};
+
 // Get the current profile
 const profile = () => cfg.profiles[curGame] || null;
 const GRIP = '<svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.5"/><circle cx="10" cy="4" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="10" cy="14" r="1.5"/></svg>';  // SVG for drag handle
@@ -49,7 +69,21 @@ window.addEventListener('pywebviewready', async () => {
     sel = -1;
   }
   await checkAllPaths();  // Check all paths for validity
+  await renderLogs();  // Load initial logs
+  
+  // Refresh logs every 1 second
+  setInterval(renderLogs, 1000);
+  
   render();  // Display everything
+});
+
+// Logs panel toggle
+document.addEventListener('click', e => {
+  if (e.target.id === 'logstoggle') {
+    const panel = $('#logspanel');
+    const isCollapsed = panel.classList.toggle('collapsed');
+    e.target.textContent = isCollapsed ? '+' : '−';
+  }
 });
 
 /* ===== RENDERING FUNCTIONS ===== */
@@ -175,7 +209,14 @@ document.addEventListener('click', async e => {
   if (!prof) return;  // Need a profile for the rest
   
   // Toggle app enabled/disabled
-  if (t.dataset.en !== undefined) { const x = prof.apps[+t.dataset.en]; x.enabled = !val(x, 'enabled', true); touch(); await render(); return; }
+  if (t.dataset.en !== undefined) { 
+    const x = prof.apps[+t.dataset.en];
+    const newState = !val(x, 'enabled', true);
+    x.enabled = newState;
+    touch(); 
+    await render(); 
+    return; 
+  }
   // Toggle behavior flags
   if (t.dataset.flag) { a[t.dataset.flag] = !val(a, t.dataset.flag, true); touch(); await render(); return; }
   // Segmented control buttons (start type)
@@ -188,18 +229,36 @@ document.addEventListener('click', async e => {
   // Add new app button
   if (t.id === 'add') {
     const p = await pywebview.api.browse_exe(); if (!p) return;
-    if (prof.apps.some(app => app.path === p)) { say('This app is already in the list'); return; }
-    prof.apps.push({ name: p.split(/[\\/]/).pop().replace(/\.exe$/i, ''), path: p, delay: 0, closeOnExit: true });
-    sel = prof.apps.length - 1; touch(); await render(); return;
+    if (prof.apps.some(app => app.path === p)) { 
+      say('This app is already in the list'); 
+      return; 
+    }
+    const appName = p.split(/[\\/]/).pop().replace(/\.exe$/i, '');
+    prof.apps.push({ name: appName, path: p, delay: 0, closeOnExit: true });
+    sel = prof.apps.length - 1; 
+    touch(); 
+    await render(); 
+    return;
   }
   // Remove button - delete app
-  if (t.id === 'remove') { prof.apps.splice(sel, 1); sel = Math.min(sel, prof.apps.length - 1); touch(); await render(); return; }
+  if (t.id === 'remove') { 
+    prof.apps.splice(sel, 1); 
+    sel = Math.min(sel, prof.apps.length - 1); 
+    touch(); 
+    await render(); 
+    return; 
+  }
   // Save button - write config to file
   if (t.id === 'save') {
     if (!curGame) { say('Add a game first.'); return; }
     const r = await pywebview.api.save_config(cfg);
-    if (r.ok) { unsaved = false; updateUnsaved(); say('Saved. Changes apply the next time the sim starts.'); }
-    else say('Not saved: ' + r.error);
+    if (r.ok) { 
+      unsaved = false; 
+      updateUnsaved(); 
+      say('Saved. Changes apply the next time the sim starts.'); 
+    } else {
+      say('Not saved: ' + r.error);
+    }
   }
 });
 

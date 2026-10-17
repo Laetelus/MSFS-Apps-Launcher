@@ -60,6 +60,38 @@ class Api:
             return False
         return Path(path).exists()
 
+    def get_launcher_logs(self, lines=50):
+        """Read recent logs from launcher.log file."""
+        log_file = self._path.parent / "launcher.log"
+        if not log_file.exists():
+            return []
+        
+        try:
+            with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                all_lines = f.readlines()
+            
+            # Get the last N lines
+            recent_lines = all_lines[-lines:] if all_lines else []
+            
+            # Parse each line into timestamp and message
+            logs = []
+            for line in recent_lines:
+                line = line.rstrip('\n')
+                if not line.strip():
+                    continue
+                
+                # Format: "2026-10-12 17:40:29,531  message"
+                parts = line.split('  ', 1)
+                if len(parts) == 2:
+                    timestamp, message = parts
+                    # Extract just time from timestamp
+                    time_part = timestamp.split(' ')[1] if ' ' in timestamp else timestamp
+                    logs.append({"time": time_part, "msg": message})
+            
+            return logs
+        except Exception as e:
+            return [{"time": "ERROR", "msg": str(e)}]
+
 
 def main():
     parser = argparse.ArgumentParser()
