@@ -137,7 +137,7 @@ function renderList() {
   $('#list').innerHTML = n ? prof.apps.map((a, i) => {
     const isInvalid = !pathValidity[a.path];
     return `
-    <div class="card ${i === sel ? 'sel' : ''} ${val(a, 'enabled', true) ? '' : 'off'} ${isInvalid ? 'invalid' : ''}" data-i="${i}" draggable="true">
+    <div class="card ${i === sel ? 'sel' : ''} ${val(a, 'enabled', true) ? '' : 'off'} ${isInvalid ? 'invalid' : ''}" data-i="${i}" draggable="${val(a, 'enabled', true)}">
       <span class="grip" title="Drag to reorder">${GRIP}</span>
       <div class="tile">${esc((a.name || '?')[0].toUpperCase())}</div>
       <div class="nm"><b>${esc(a.name)}</b><span title="${esc(a.path)}">${esc(a.path)}</span></div>
@@ -209,13 +209,27 @@ document.addEventListener('click', async e => {
   if (!prof) return;  // Need a profile for the rest
   
   // Toggle app enabled/disabled
-  if (t.dataset.en !== undefined) { 
-    const x = prof.apps[+t.dataset.en];
-    const newState = !val(x, 'enabled', true);
-    x.enabled = newState;
-    touch(); 
-    await render(); 
-    return; 
+  if (t.dataset.en !== undefined) {
+    const apps = prof.apps;
+    const x = apps[+t.dataset.en];
+    const selected = apps[sel];            // remember which app is selected
+    x.enabled = !val(x, 'enabled', true);
+
+    // Keep enabled apps on top, disabled apps at the bottom.
+    apps.splice(+t.dataset.en, 1);         // take the app out of the list
+    if (x.enabled) {
+      // Re-enabled: goes right after the last enabled app
+      let last = -1;
+      apps.forEach((app, i) => { if (val(app, 'enabled', true)) last = i; });
+      apps.splice(last + 1, 0, x);
+    } else {
+      apps.push(x);                        // Disabled: goes to the very bottom
+    }
+    sel = apps.indexOf(selected);          // selection follows the app, not the row
+
+    touch();
+    await render();
+    return;
   }
   // Toggle behavior flags
   if (t.dataset.flag) { a[t.dataset.flag] = !val(a, t.dataset.flag, true); touch(); await render(); return; }
@@ -302,6 +316,7 @@ document.addEventListener('click', async e => {
 // Start dragging an app card
 document.addEventListener('dragstart', e => {
   const c = e.target.closest('.card'); if (!c) return;
+  if (c.classList.contains('off')) { e.preventDefault(); return; }   // disabled apps are locked
   dragFrom = +c.dataset.i; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(dragFrom));
   c.classList.add('drag');
 });
@@ -309,14 +324,16 @@ document.addEventListener('dragstart', e => {
 // Drag over a card
 document.addEventListener('dragover', e => {
   const c = e.target.closest('.card'); if (!c || dragFrom < 0) return;
-  e.preventDefault();
   document.querySelectorAll('.card.over').forEach(x => x.classList.remove('over'));
+  if (c.classList.contains('off')) return;   // can't drop onto the disabled section
+  e.preventDefault();
   c.classList.add('over');
 });
 
 // Drop to reorder
 document.addEventListener('drop', async e => {
   const c = e.target.closest('.card'); if (!c || dragFrom < 0) return;
+  if (c.classList.contains('off')) return;   // can't drop onto the disabled section
   e.preventDefault();
   const to = +c.dataset.i;
   const prof = profile();

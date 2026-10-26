@@ -297,6 +297,12 @@ h1 {
   order: 2;
 }
 
+/* Disabled apps are locked in place: hide the drag handle but keep its space
+   so the tile and name stay aligned with the enabled rows. */
+.card.off .grip {
+  visibility: hidden;
+}
+
 .card.invalid {
   border-color: rgba(255, 87, 87, 0.5) !important;
   background: rgba(255, 87, 87, 0.12) !important;
