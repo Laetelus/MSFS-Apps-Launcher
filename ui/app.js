@@ -21,23 +21,51 @@ const touch = () => { unsaved = true; say('Unsaved changes'); updateUnsaved(); }
 const simLabel = s => !s ? '' : /2024/.test(s) ? 'MSFS 2024' : /^FlightSimulator\.exe$/i.test(s) ? 'MSFS 2020' : s.replace(/\.exe$/i, '');  // Display name for a game
 
 // Logging functions
+// The log is a rolling window (last 50 lines). Instead of rebuilding the whole list every
+// second (which resets the scroll position), we only drop lines that scrolled out of the
+// window and append the new ones. Auto-follow only happens while you are at the bottom.
+let logKeys = [];          // keys of the lines currently shown
+let logPinned = true;      // true while the view is scrolled to the bottom
+const logKey = l => l.time + '|' + l.msg;
+const logHtml = l => `
+    <div class="log-entry info">
+      <span class="log-time">${esc(l.time)}</span>
+      <span class="log-msg">${esc(l.msg)}</span>
+    </div>`;
+
+const logBox = $('#logscontent');
+logBox.style.overflowAnchor = 'none';   // we compensate manually below
+logBox.addEventListener('scroll', () => {
+  logPinned = logBox.scrollHeight - logBox.scrollTop - logBox.clientHeight <= 10;
+});
+
 const renderLogs = async () => {
   const logs = await pywebview.api.get_launcher_logs(50);
-  const content = $('#logscontent');
-  
-  // Check if we're at the bottom before updating
-  const wasAtBottom = content.scrollHeight - content.scrollTop <= content.clientHeight + 10;
-  
-  content.innerHTML = logs.map(log => `
-    <div class="log-entry info">
-      <span class="log-time">${esc(log.time)}</span>
-      <span class="log-msg">${esc(log.msg)}</span>
-    </div>`).join('');
-  
-  // Only auto-scroll if we were already at the bottom
-  if (wasAtBottom) {
-    content.scrollTop = content.scrollHeight;
+  const keys = logs.map(logKey);
+
+  // Find how many old lines dropped off the top: the shown lines (minus `drop`)
+  // must match the start of the new list.
+  let drop = logKeys.length, overlap = 0;
+  for (let k = 0; k <= logKeys.length; k++) {
+    const n = logKeys.length - k;
+    if (n > keys.length) continue;
+    let same = true;
+    for (let j = 0; j < n; j++) if (logKeys[k + j] !== keys[j]) { same = false; break; }
+    if (same) { drop = k; overlap = n; break; }
   }
+
+  if (drop === 0 && overlap === keys.length) return;   // nothing new, leave the view alone
+
+  // Keep the lines you are reading in place when old lines are removed above them
+  const anchor = !logPinned && drop > 0 ? logBox.children[drop] : null;
+  const before = anchor ? anchor.getBoundingClientRect().top : 0;
+  for (let i = 0; i < drop; i++) logBox.firstElementChild.remove();
+  if (anchor) logBox.scrollTop -= before - anchor.getBoundingClientRect().top;
+
+  logBox.insertAdjacentHTML('beforeend', logs.slice(overlap).map(logHtml).join(''));
+  logKeys = keys;
+
+  if (logPinned) logBox.scrollTop = logBox.scrollHeight;   // only follow if already at the bottom
 };
 
 // Get the current profile
