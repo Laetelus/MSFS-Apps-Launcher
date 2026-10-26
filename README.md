@@ -4,7 +4,7 @@
 
 Starts your Microsoft Flight Simulator companion apps automatically when the sim starts, minimizes them, and closes them when the sim exits. Apps can also be held back until a flight is actually loaded (cockpit or external view) instead of starting in the main menu.
 
-Configure your apps using the built-in GUI, or edit `apps.json` manually for advanced use.
+Configure your apps using the built-in GUI, which includes system tray support for convenient access. Or edit `apps.json` manually for advanced use.
 
 # Requirements
 
@@ -17,6 +17,14 @@ pip install SimConnect
 ```
 
 If SimConnect is not installed, session apps start immediately instead of waiting for a flight, and the log says `SimConnect not available`.
+
+- For GUI system tray support (optional but recommended), install pystray and dependencies:
+
+```
+pip install pywebview pystray pillow
+```
+
+If pystray is not installed, the GUI will still work but without system tray minimize and menu features.
 
 # Setup
 
@@ -41,6 +49,8 @@ If SimConnect is not installed, session apps start immediately instead of waitin
    Only one launcher entry should be active at a time. If two are, or an old one is left over, the second copy exits (see "Things to know").
 
 3. **Run the GUI** by double-clicking `gui.py` in your launcher folder. On first run, it will create `apps.json`.
+   - The GUI minimizes to the system tray (if pystray is installed) for easy access when in game.
+   - Click the tray icon to show the window, or right-click for a menu.
 4. **Add your games and apps** in the GUI. For each game, select the sim executable, then add your companion apps. You can configure launch behavior (delay, window state, close on exit, etc.) for each app.
 5. **Save your configuration** in the GUI. Changes apply the next time you start the sim.
 
@@ -116,7 +126,8 @@ The launcher watches the sim's camera state through SimConnect. When the camera 
 
 # Known limitations
 
-- **No tray icon or launcher visibility while running.** The launcher runs in the background only while the sim runs. To see it, look for `pythonw.exe` (or `MSFSLauncher.exe`) in Task Manager. To stop it early, end that process there. It exits on its own after the sim closes and the apps are shut down.
+- **The launcher runs in the background while the sim runs.** The launcher itself has no visible window—only the apps it launches appear. To monitor or stop the launcher early, look for `pythonw.exe` (or `MSFSLauncher.exe`) in Task Manager. It exits on its own after the sim closes and the apps are shut down.
+- **GUI system tray is separate from the launcher.** The GUI (gui.py) minimizes to the system tray for configuration, but the launcher process that starts apps runs independently in the background.
 - Window control is limited to minimized or maximized, and some apps may restore their own window after being minimized.
 - Session apps start once per sim run (see above).
 - The camera-state values used to detect a flight were observed on MSFS 2024 and are not all verified. If an app starts too early, check the `camera state` lines in the log.

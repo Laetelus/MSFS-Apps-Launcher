@@ -11,6 +11,7 @@ because there is no console window when exe.xml runs it.
 import ctypes
 import json
 import logging
+import socket
 import subprocess
 import sys
 import time
@@ -42,6 +43,22 @@ logging.basicConfig(
 log = logging.getLogger("launcher")
 log.info("args: %s", sys.argv)
 log.info("config path: %s", CONFIG)
+
+
+def is_gui_running():
+    """Check if GUI is already running by attempting to connect to its lock socket."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex(('127.0.0.1', 54321))
+        sock.close()
+        if result == 0:
+            log.info("GUI already running (detected on port 54321)")
+            return True
+        return False
+    except Exception as exc:
+        log.info("error checking if GUI is running: %s", exc)
+        return False
 
 
 def is_running(exe_name):
@@ -171,6 +188,23 @@ def main():
     log.info("%s detected, starting", sim)
     start = time.time()
     launched = []
+    
+    # Launch the GUI app (minimized to tray) - but only if not already running
+    gui_proc = None
+    try:
+        if not is_gui_running():
+            gui_path = HERE / "gui.py"
+            if gui_path.exists():
+                cmd = [sys.executable, str(gui_path), "--config", str(CONFIG), "--sim", sim, "--minimized"]
+                gui_proc = subprocess.Popen(cmd, cwd=HERE, creationflags=NO_WINDOW)
+                log.info("launched GUI (pid %s) minimized to tray", gui_proc.pid)
+            else:
+                log.info("GUI not found at %s", gui_path)
+        else:
+            log.info("GUI already running, not launching another instance")
+    except Exception as exc:
+        log.info("failed to launch GUI: %s", exc)
+    
     session_ready = start_session_watch(lambda: is_running(sim)) if session_apps else None
     session_start = None
 
@@ -185,6 +219,19 @@ def main():
         time.sleep(1)
 
     log.info("sim exited, closing apps")
+    
+    # Only close GUI if we launched it (gui_proc is not None)
+    if gui_proc:
+        try:
+            gui_proc.terminate()
+            gui_proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            gui_proc.kill()
+        except Exception as exc:
+            log.info("error closing GUI: %s", exc)
+    else:
+        log.info("GUI was already running, leaving it open")
+    
     close_all(launched)
     
     
