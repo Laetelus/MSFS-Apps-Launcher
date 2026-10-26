@@ -293,7 +293,7 @@ def main():
     # Create window
     api._window = webview.create_window(
         "MSFS App Launcher", str(BASE / "ui" / "index.html"),
-        js_api=api, width=1120, height=720, min_size=(1120, 720))
+        js_api=api, width=1160, height=720, min_size=(1160, 720))
     
     # Setup tray icon first (if available)
     if HAS_SYSTRAY:

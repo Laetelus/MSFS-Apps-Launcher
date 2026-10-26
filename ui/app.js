@@ -92,7 +92,7 @@ function chips(a) {
   const d = val(a, 'delay', 0);
   const start = a.start === 'session'
     ? `<span class="chip a">After flight ready${d ? ' +' + d + ' s' : ''}</span>`
-    : `<span class="chip a">${d ? 'After ' + d + ' s' : 'With sim'}</span>`;
+    : `<span class="chip a">${d ? 'After ' + d + ' s' : 'With Sim'}</span>`;
   return start + (val(a, 'closeOnExit', true) ? '<span class="chip">Closes on exit</span>' : '');
 }
 
@@ -164,7 +164,7 @@ function renderDetail() {
       <div class="dt"><input class="title-in" id="f-name" value="${esc(a.name)}" aria-label="Name" spellcheck="false">
         <span class="path" title="${esc(a.path)}">${esc(a.path)}</span></div></div>
     <div class="fl"><span class="lbl">Start</span>
-      ${seg('start', [['sim', 'With sim'], ['session', 'Flight ready']], session ? 'session' : 'sim')}
+      ${seg('start', [['sim', 'With sim'], ['session', 'In Session']], session ? 'session' : 'sim')}
       <span class="hint">${session ? 'Starts once a flight has loaded and you are in the aircraft.' : 'Starts as soon as the sim is running.'}</span></div>
     <div class="fl"><label class="lbl" for="f-delay">Delay (seconds)</label>
       <div class="dl"><input class="num" id="f-delay" type="number" min="0" value="${d}"><div class="spins"><button type="button" data-spin="up">▲</button><button type="button" data-spin="down">▼</button></div></div>
