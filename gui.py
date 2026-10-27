@@ -167,16 +167,12 @@ class Api:
                     continue
                 
                 # Format: "2026-10-12 17:40:29,531  message"
-                parts = line.split('  ', 1)
-                if len(parts) == 2:
-                    timestamp, message = parts
-                    # Extract just time from timestamp
-                    time_part = timestamp.split(' ')[1] if ' ' in timestamp else timestamp
-                    logs.append({"time": time_part, "msg": message})
+                date, time_part, message = line.split(' ', 2)
+                logs.append({"date": date, "time": time_part, "msg": message})
             
             return logs
         except Exception as e:
-            return [{"time": "ERROR", "msg": str(e)}]
+            return [{"date": "N/A", "time": "ERROR", "msg": str(e)}]
 
     def is_msfs_running(self):
         """Check if MSFS is currently running."""

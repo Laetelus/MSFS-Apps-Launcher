@@ -783,7 +783,6 @@ h1 {
   border-left: 2px solid rgba(76, 194, 255, 0.3);
   color: var(--text);
   display: flex;
-  gap: 6px;
   align-items: flex-start;
   line-height: 1.3;
 }
@@ -807,12 +806,26 @@ h1 {
   color: rgba(255, 87, 87, 0.9);
 }
 
+.log-timestamp {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+  min-width: 70px;
+}
+
+.log-date {
+  font-size: 10px;
+  color: var(--mute);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
 .log-time {
   font-size: 10px;
   color: var(--mute);
   white-space: nowrap;
   font-weight: 500;
-  flex-shrink: 0;
 }
 
 .log-msg {

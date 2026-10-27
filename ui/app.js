@@ -26,11 +26,14 @@ const simLabel = s => !s ? '' : /2024/.test(s) ? 'MSFS 2024' : /^FlightSimulator
 // window and append the new ones. Auto-follow only happens while you are at the bottom.
 let logKeys = [];          // keys of the lines currently shown
 let logPinned = true;      // true while the view is scrolled to the bottom
-const logKey = l => l.time + '|' + l.msg;
+const logKey = l => (l.date || '') + ' ' + l.time + '|' + l.msg;
 const logHtml = l => `
     <div class="log-entry info">
-      <span class="log-time">${esc(l.time)}</span>
-      <span class="log-msg">${esc(l.msg)}</span>
+      <div class="log-timestamp">
+        <div class="log-date">${esc(l.date)}</div>
+        <div class="log-time">${esc(l.time)}</div>
+      </div>
+      <div class="log-msg">${esc(l.msg)}</div>
     </div>`;
 
 const logBox = $('#logscontent');
@@ -211,6 +214,32 @@ document.addEventListener('click', async e => {
   const prof = profile();
   const a = prof ? prof.apps[sel] : null;
   
+  // Toggle app enabled/disabled - check this BEFORE checking for card clicks
+  if (t.classList.contains('tog') && t.dataset.en !== undefined) {
+    e.stopPropagation();
+    const apps = prof;
+    const x = prof.apps[+t.dataset.en];
+    if (!x) return;
+    const selected = prof.apps[sel];            // remember which app is selected
+    x.enabled = !val(x, 'enabled', true);
+
+    // Keep enabled apps on top, disabled apps at the bottom.
+    prof.apps.splice(+t.dataset.en, 1);         // take the app out of the list
+    if (x.enabled) {
+      // Re-enabled: goes right after the last enabled app
+      let last = -1;
+      prof.apps.forEach((app, i) => { if (val(app, 'enabled', true)) last = i; });
+      prof.apps.splice(last + 1, 0, x);
+    } else {
+      prof.apps.push(x);                        // Disabled: goes to the very bottom
+    }
+    sel = prof.apps.indexOf(selected);          // selection follows the app, not the row
+
+    touch();
+    await render();
+    return;
+  }
+  
   // Add or change the game
   if (t.dataset.act === 'addgame') { picking = true; await render(); return; }
   if (t.dataset.act === 'gamecancel') { picking = false; await render(); return; }
@@ -236,29 +265,6 @@ document.addEventListener('click', async e => {
   
   if (!prof) return;  // Need a profile for the rest
   
-  // Toggle app enabled/disabled
-  if (t.dataset.en !== undefined) {
-    const apps = prof.apps;
-    const x = apps[+t.dataset.en];
-    const selected = apps[sel];            // remember which app is selected
-    x.enabled = !val(x, 'enabled', true);
-
-    // Keep enabled apps on top, disabled apps at the bottom.
-    apps.splice(+t.dataset.en, 1);         // take the app out of the list
-    if (x.enabled) {
-      // Re-enabled: goes right after the last enabled app
-      let last = -1;
-      apps.forEach((app, i) => { if (val(app, 'enabled', true)) last = i; });
-      apps.splice(last + 1, 0, x);
-    } else {
-      apps.push(x);                        // Disabled: goes to the very bottom
-    }
-    sel = apps.indexOf(selected);          // selection follows the app, not the row
-
-    touch();
-    await render();
-    return;
-  }
   // Toggle behavior flags
   if (t.dataset.flag) { a[t.dataset.flag] = !val(a, t.dataset.flag, true); touch(); await render(); return; }
   // Segmented control buttons (start type)
