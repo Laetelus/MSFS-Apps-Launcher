@@ -29,7 +29,7 @@ ARGS = parser.parse_args()
 if getattr(sys, "frozen", False):
     HERE = Path(sys.executable).resolve().parent   # running as an exe
 else:
-    HERE = Path(__file__).resolve().parent         # running as a script
+    HERE = Path(__file__).resolve().parent.parent  # running as a script (src/), go up to root
 
 CONFIG = Path(ARGS.config) if ARGS.config else HERE / "apps.json"
 LOG = HERE / "launcher.log"
@@ -193,7 +193,7 @@ def main():
     gui_proc = None
     try:
         if not is_gui_running():
-            gui_path = HERE / "gui.py"
+            gui_path = HERE / "src" / "gui.py"
             if gui_path.exists():
                 cmd = [sys.executable, str(gui_path), "--config", str(CONFIG), "--sim", sim, "--minimized"]
                 gui_proc = subprocess.Popen(cmd, cwd=HERE, creationflags=NO_WINDOW)

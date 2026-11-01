@@ -303,7 +303,7 @@ document.addEventListener('click', async e => {
     if (r.ok) { 
       unsaved = false; 
       updateUnsaved(); 
-      say('Saved. Changes apply the next time the sim starts.'); 
+      say('Saved! Changes apply the next time the sim starts.'); 
     } else {
       say('Not saved: ' + r.error);
     }

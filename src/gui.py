@@ -49,7 +49,7 @@ BASE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 if getattr(sys, "frozen", False):
     HERE = Path(sys.executable).resolve().parent
 else:
-    HERE = Path(__file__).resolve().parent
+    HERE = Path(__file__).resolve().parent.parent  # running as a script (src/), go up to root
 
 GUI_LOCK_FILE = HERE / ".gui_running"
 GUI_PORT = 54321  # Port used for GUI singleton detection
@@ -288,7 +288,7 @@ def main():
 
     # Create window
     api._window = webview.create_window(
-        "MSFS App Launcher", str(BASE / "ui" / "index.html"),
+        "MSFS App Launcher", str(HERE / "ui" / "index.html"),
         js_api=api, width=1160, height=720, min_size=(1160, 720))
     
     # Setup tray icon first (if available)

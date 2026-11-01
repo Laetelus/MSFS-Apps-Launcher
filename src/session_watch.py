@@ -18,6 +18,8 @@ is not installed.
 import logging
 import threading
 import time
+from SimConnect import SimConnect, AircraftRequests
+
 
 log = logging.getLogger("launcher")
 
@@ -31,7 +33,6 @@ RECONNECT_AFTER = 10      # consecutive bad reads before reconnecting
 
 
 def _try_connect():
-    from SimConnect import SimConnect, AircraftRequests
     sm = SimConnect()
     aq = AircraftRequests(sm, _time=500)
     # CAMERA STATE is not in the library's built-in list, so add it.
