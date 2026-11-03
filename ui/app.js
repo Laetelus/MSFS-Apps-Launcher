@@ -10,8 +10,8 @@ let cfg = null,           // Full config object with all profiles
 
 // Helper functions
 const $ = s => document.querySelector(s);  // Shorthand for querySelector
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));  // Escape HTML special chars
 const val = (a, k, d) => a[k] === undefined ? d : a[k];  // Get value with default fallback
+const template = name => document.getElementById(`tpl-${name}`).content.cloneNode(true);
 
 // Game / sim helpers
 const normSim = v => { v = (v || '').trim(); return !v ? '' : /\.exe$/i.test(v) ? v : v + '.exe'; };  // Add .exe if missing
@@ -27,14 +27,13 @@ const simLabel = s => !s ? '' : /2024/.test(s) ? 'MSFS 2024' : /^FlightSimulator
 let logKeys = [];          // keys of the lines currently shown
 let logPinned = true;      // true while the view is scrolled to the bottom
 const logKey = l => (l.date || '') + ' ' + l.time + '|' + l.msg;
-const logHtml = l => `
-    <div class="log-entry info">
-      <div class="log-timestamp">
-        <div class="log-date">${esc(l.date)}</div>
-        <div class="log-time">${esc(l.time)}</div>
-      </div>
-      <div class="log-msg">${esc(l.msg)}</div>
-    </div>`;
+const logNode = l => {
+  const entry = template('log-entry').firstElementChild;
+  entry.querySelector('.log-date').textContent = l.date || '';
+  entry.querySelector('.log-time').textContent = l.time || '';
+  entry.querySelector('.log-msg').textContent = l.msg || '';
+  return entry;
+};
 
 const logBox = $('#logscontent');
 logBox.style.overflowAnchor = 'none';   // we compensate manually below
@@ -65,7 +64,7 @@ const renderLogs = async () => {
   for (let i = 0; i < drop; i++) logBox.firstElementChild.remove();
   if (anchor) logBox.scrollTop -= before - anchor.getBoundingClientRect().top;
 
-  logBox.insertAdjacentHTML('beforeend', logs.slice(overlap).map(logHtml).join(''));
+  for (const log of logs.slice(overlap)) logBox.append(logNode(log));
   logKeys = keys;
 
   if (logPinned) logBox.scrollTop = logBox.scrollHeight;   // only follow if already at the bottom
@@ -73,7 +72,10 @@ const renderLogs = async () => {
 
 // Get the current profile
 const profile = () => cfg.profiles[curGame] || null;
-const GRIP = '<svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.5"/><circle cx="10" cy="4" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="10" cy="14" r="1.5"/></svg>';  // SVG for drag handle
+
+const showTemplate = (target, name) => {
+  target.replaceChildren(template(name));
+};
 
 // Check if all app paths exist
 async function checkAllPaths() {
@@ -121,10 +123,20 @@ document.addEventListener('click', e => {
 // Create chip tags showing app properties (start time, window state, etc.)
 function chips(a) {
   const d = val(a, 'delay', 0);
-  const start = a.start === 'session'
-    ? `<span class="chip a">After flight ready${d ? ' +' + d + ' s' : ''}</span>`
-    : `<span class="chip a">${d ? 'After ' + d + ' s' : 'With Sim'}</span>`;
-  return start + (val(a, 'closeOnExit', true) ? '<span class="chip">Closes on exit</span>' : '');
+  const startText = a.start === 'session'
+    ? `After flight ready${d ? ' +' + d + ' s' : ''}`
+    : d ? `After ${d} s` : 'With Sim';
+  const start = template('chip').firstElementChild;
+  start.classList.add('a');
+  start.textContent = startText;
+  const result = document.createDocumentFragment();
+  result.append(start);
+  if (val(a, 'closeOnExit', true)) {
+    const close = template('chip').firstElementChild;
+    close.textContent = 'Closes on exit';
+    result.append(close);
+  }
+  return result;
 }
 
 // Main render function - update both list and detail panel
@@ -137,10 +149,6 @@ async function render() {
 // "Choose your game" list. Known games need no file picker (Windows blocks selecting
 // the exe inside Xbox / Game Pass install folders), so their process names are built in.
 const GAMES = [['MSFS 2024', 'FlightSimulator2024.exe', '24'], ['MSFS 2020', 'FlightSimulator.exe', '20']];
-const pickerHtml = () => `
-  <div class="lbl">Choose your game</div>
-  ${GAMES.map(([n, e, t]) => `<div class="card" data-game="${e}"><div class="tile">${t}</div><div class="nm"><b>${n}</b><span>${e}</span></div></div>`).join('')}
-  <div><button class="sec" data-act="gamecancel">Cancel</button></div>`;
 
 // Render the app list (left/center area)
 function renderList() {
@@ -155,56 +163,94 @@ function renderList() {
   $('#title').textContent = has ? label : 'No game yet';
   $('#sim').textContent = curGame || 'game.exe';  // Display current game executable
   
-  if (picking) { $('#list').innerHTML = pickerHtml(); return; }
+  if (picking) {
+    const picker = template('game-picker');
+    const options = picker.querySelector('.game-options');
+    for (const [name, exe, tile] of GAMES) {
+      const option = template('game-option').firstElementChild;
+      option.dataset.game = exe;
+      option.querySelector('.tile').textContent = tile;
+      option.querySelector('.nm b').textContent = name;
+      option.querySelector('.nm span').textContent = exe;
+      options.append(option);
+    }
+    $('#list').replaceChildren(picker);
+    return;
+  }
   
   if (!has) {
-    $('#list').innerHTML = '<div class="empty">Add the game you fly (for example MSFS 2024), so the launcher knows which program to watch for.<br><br><button class="pri" data-act="addgame">+ Add game</button></div>';
+    showTemplate($('#list'), 'no-game');
     return;
   }
   
   $('#gname').textContent = label;
   $('#gcount').textContent = n;
   $('#count').textContent = n + ' app' + (n === 1 ? '' : 's') + ' \u00b7 launch order';
-  $('#list').innerHTML = n ? prof.apps.map((a, i) => {
-    const isInvalid = !pathValidity[a.path];
-    return `
-    <div class="card ${i === sel ? 'sel' : ''} ${val(a, 'enabled', true) ? '' : 'off'} ${isInvalid ? 'invalid' : ''}" data-i="${i}" draggable="${val(a, 'enabled', true)}">
-      <span class="grip" title="Drag to reorder">${GRIP}</span>
-      <div class="tile">${esc((a.name || '?')[0].toUpperCase())}</div>
-      <div class="nm"><b>${esc(a.name)}</b><span title="${esc(a.path)}">${esc(a.path)}</span></div>
-      <div class="chips">${chips(a)}</div>
-      <button class="tog ${val(a, 'enabled', true) ? 'on' : ''}" data-en="${i}" aria-label="Enabled" aria-pressed="${val(a, 'enabled', true)}"><i></i></button>
-    </div>`;
-  }).join('') : '<div class="empty">No apps yet. Click "Add app" to pick one.</div>';
-}
+  if (!n) {
+    showTemplate($('#list'), 'no-apps');
+    return;
+  }
 
-// Helper to create segmented control buttons
-const seg = (key, opts, cur) => `<div class="seg">${opts.map(([v, t]) => `<button data-set="${key}" data-v="${v}" class="${cur === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
-// Helper to create toggle switch
-const toggle = (key, label, on) => `<div class="opt">${label}<button class="tog ${on ? 'on' : ''}" data-flag="${key}" aria-label="${label}" aria-pressed="${on}"><i></i></button></div>`;
+  const cards = document.createDocumentFragment();
+  prof.apps.forEach((a, i) => {
+    const card = template('app-card').firstElementChild;
+    const enabled = val(a, 'enabled', true);
+    card.dataset.i = i;
+    card.draggable = enabled;
+    card.classList.toggle('sel', i === sel);
+    card.classList.toggle('off', !enabled);
+    card.classList.toggle('invalid', !pathValidity[a.path]);
+    card.querySelector('.tile').textContent = (a.name || '?')[0].toUpperCase();
+    card.querySelector('.nm b').textContent = a.name || '';
+    const path = card.querySelector('.nm span');
+    path.textContent = a.path || '';
+    path.title = a.path || '';
+    card.querySelector('.chips').append(chips(a));
+    const enabledToggle = card.querySelector('.tog');
+    enabledToggle.classList.toggle('on', enabled);
+    enabledToggle.dataset.en = i;
+    enabledToggle.setAttribute('aria-pressed', String(enabled));
+    cards.append(card);
+  });
+  $('#list').replaceChildren(cards);
+}
 
 // Render the detail panel on the right (shows/edits selected app)
 function renderDetail() {
   const prof = profile();
-  if (!curGame || !prof) { $('#det').innerHTML = '<div class="empty">Add a game first, then add the apps you want to launch with it.</div>'; return; }
+  if (!curGame || !prof) { showTemplate($('#det'), 'detail-empty'); return; }
   const a = prof.apps[sel];
-  if (!a) { $('#det').innerHTML = '<div class="empty">Select an app to edit it.</div>'; return; }
-  const session = a.start === 'session', d = val(a, 'delay', 0);
-  $('#det').innerHTML = `
-    <div class="dh"><div class="tile">${esc((a.name || '?')[0].toUpperCase())}</div>
-      <div class="dt"><input class="title-in" id="f-name" value="${esc(a.name)}" aria-label="Name" spellcheck="false">
-        <span class="path" title="${esc(a.path)}">${esc(a.path)}</span></div></div>
-    <div class="fl"><span class="lbl">Start</span>
-      ${seg('start', [['sim', 'With sim'], ['session', 'In Session']], session ? 'session' : 'sim')}
-      <span class="hint">${session ? 'Starts once a flight has loaded and you are in the aircraft.' : 'Starts as soon as the sim is running.'}</span></div>
-    <div class="fl"><label class="lbl" for="f-delay">Delay (seconds)</label>
-      <div class="dl"><input class="num" id="f-delay" type="number" min="0" value="${d}"><div class="spins"><button type="button" data-spin="up">▲</button><button type="button" data-spin="down">▼</button></div></div>
-      <span class="hint">${session ? 'Counted from when the flight is ready.' : 'Counted from when the sim starts, not from the previous app.'}</span></div>
-    <div class="fl"><span class="lbl">Behavior</span>
-      ${toggle('closeOnExit', 'Close when sim exits', val(a, 'closeOnExit', true))}
-    <div class="fl"><label class="lbl" for="f-args">Launch arguments</label>
-      <input class="inp" id="f-args" placeholder="Optional" value="${esc((a.args || []).join(' '))}" spellcheck="false"></div>
-    <div class="row" style="margin-top:auto"><button class="sec dng" id="remove" style="flex:1">Remove</button></div>`;
+  if (!a) { showTemplate($('#det'), 'select-empty'); return; }
+  const session = a.start === 'session', d = val(a, 'delay', 0), wnd = val(a, 'window', 'minimized');
+  const detail = template('app-detail');
+  const name = a.name || '';
+  const nameTile = detail.querySelector('.dh .tile');
+  nameTile.textContent = (name || '?')[0].toUpperCase();
+  const nameInput = detail.querySelector('#f-name');
+  nameInput.value = name;
+  const path = detail.querySelector('.path');
+  path.textContent = a.path || '';
+  path.title = a.path || '';
+
+  detail.querySelector('[data-v="sim"]').classList.toggle('on', !session);
+  detail.querySelector('[data-v="session"]').classList.toggle('on', session);
+  detail.querySelector('[data-field="start-hint"]').textContent = session
+    ? 'Starts once a flight has loaded and you are in the aircraft.'
+    : 'Starts as soon as the sim is running.';
+  detail.querySelector('#f-delay').value = d;
+  detail.querySelector('[data-field="delay-hint"]').textContent = session
+    ? 'Counted from when the flight is ready.'
+    : 'Counted from when the sim starts, not from the previous app.';
+  const closeToggle = detail.querySelector('[data-flag="closeOnExit"]');
+  const closeOnExit = val(a, 'closeOnExit', true);
+  closeToggle.classList.toggle('on', closeOnExit);
+  closeToggle.setAttribute('aria-pressed', String(closeOnExit));
+  const minimizedToggle = detail.querySelector('[data-flag="minimized"]');
+  const minimized = wnd !== 'normal' && wnd !== 'maximized';
+  minimizedToggle.classList.toggle('on', minimized);
+  minimizedToggle.setAttribute('aria-pressed', String(minimized));
+  detail.querySelector('#f-args').value = (a.args || []).join(' ');
+  $('#det').replaceChildren(detail);
 }
 
 /* ===== EVENT HANDLERS ===== */
@@ -266,8 +312,15 @@ document.addEventListener('click', async e => {
   if (!prof) return;  // Need a profile for the rest
   
   // Toggle behavior flags
-  if (t.dataset.flag) { a[t.dataset.flag] = !val(a, t.dataset.flag, true); touch(); await render(); return; }
-  // Segmented control buttons (start type)
+  if (t.dataset.flag) {
+    if (t.dataset.flag === 'minimized') {
+      a.window = val(a, 'window', 'minimized') === 'minimized' ? 'normal' : 'minimized';
+    } else {
+      a[t.dataset.flag] = !val(a, t.dataset.flag, true);
+    }
+    touch(); await render(); return;
+  }
+  // Segmented control buttons (start type, window mode)
   if (t.dataset.set) {
     if (t.dataset.set === 'start') { if (t.dataset.v === 'session') a.start = 'session'; else delete a.start; }
     touch(); await render(); return;

@@ -4,7 +4,7 @@
 Public API:
     start_window_watcher(name, proc_name, mode="minimized", timeout=30)
         Starts a background thread that finds the app's windows and sets them
-        to "minimized" or "maximized". Returns the thread.
+        to "minimized" or a normal (restored) window. Returns the thread.
     enforce_window(...)
         Same thing, but blocking. Useful for tests.
 
@@ -23,7 +23,7 @@ from ctypes import wintypes
 log = logging.getLogger("launcher")  # same logger as launcher.py, so one log file
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
-SW_MAXIMIZE = 3
+SW_SHOWNORMAL = 1
 SW_SHOWMINNOACTIVE = 7   # minimize without stealing focus from the sim
 GW_OWNER = 4
 
@@ -66,7 +66,8 @@ def windows_for(pids):
 
 def enforce_window(name, proc_name, mode="minimized", timeout=30):
     """Watch for the app's windows and set each new one once. Blocks."""
-    flag = SW_MAXIMIZE if mode == "maximized" else SW_SHOWMINNOACTIVE
+    mode = "minimized" if mode == "minimized" else "normal"
+    flag = SW_SHOWMINNOACTIVE if mode == "minimized" else SW_SHOWNORMAL
     handled = set()
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -90,7 +91,7 @@ def start_window_watcher(name, proc_name, mode="minimized", timeout=30):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        sys.exit("usage: python window_ctrl.py ProcessName.exe [minimized|maximized]")
+        sys.exit("usage: python window_ctrl.py ProcessName.exe [minimized|normal]")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(message)s")
     enforce_window(sys.argv[1], sys.argv[1],
                    sys.argv[2] if len(sys.argv) > 2 else "minimized", timeout=10)

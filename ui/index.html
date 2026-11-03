@@ -50,6 +50,95 @@
 <!-- RIGHT DETAILS PANEL - Edit selected app settings -->
 <div class="det" id="det"></div>
 
+<!-- Reusable markup for UI rendered from the current configuration. -->
+<template id="tpl-log-entry">
+  <div class="log-entry info">
+    <div class="log-timestamp">
+      <div class="log-date"></div>
+      <div class="log-time"></div>
+    </div>
+    <div class="log-msg"></div>
+  </div>
+</template>
+
+<template id="tpl-game-picker">
+  <div class="lbl">Choose your game</div>
+  <div class="game-options"></div>
+  <div><button class="sec" data-act="gamecancel">Cancel</button></div>
+</template>
+<template id="tpl-game-option">
+  <div class="card" data-game="">
+    <div class="tile"></div>
+    <div class="nm"><b></b><span></span></div>
+  </div>
+</template>
+<template id="tpl-no-game">
+  <div class="empty">Add the game you fly (for example MSFS 2024), so the launcher knows which program to watch for.<br><br><button class="pri" data-act="addgame">+ Add game</button></div>
+</template>
+<template id="tpl-no-apps">
+  <div class="empty">No apps yet. Click "Add app" to pick one.</div>
+</template>
+<template id="tpl-app-card">
+  <div class="card" draggable="false">
+    <span class="grip" title="Drag to reorder">
+      <svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.5"/><circle cx="10" cy="4" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="10" cy="9" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="10" cy="14" r="1.5"/></svg>
+    </span>
+    <div class="tile"></div>
+    <div class="nm"><b></b><span></span></div>
+    <div class="chips"></div>
+    <button class="tog" aria-label="Enabled" aria-pressed="false"><i></i></button>
+  </div>
+</template>
+<template id="tpl-chip"><span class="chip"></span></template>
+<template id="tpl-detail-empty">
+  <div class="empty">Add a game first, then add the apps you want to launch with it.</div>
+</template>
+<template id="tpl-select-empty">
+  <div class="empty">Select an app to edit it.</div>
+</template>
+<template id="tpl-app-detail">
+  <div class="dh">
+    <div class="tile"></div>
+    <div class="dt">
+      <input class="title-in" id="f-name" aria-label="Name" spellcheck="false">
+      <span class="path"></span>
+    </div>
+  </div>
+  <div class="fl">
+    <span class="lbl">Start</span>
+    <div class="seg">
+      <button data-set="start" data-v="sim">With sim</button>
+      <button data-set="start" data-v="session">In Session</button>
+    </div>
+    <span class="hint" data-field="start-hint"></span>
+  </div>
+  <div class="fl">
+    <label class="lbl" for="f-delay">Delay (seconds)</label>
+    <div class="dl">
+      <input class="num" id="f-delay" type="number" min="0">
+      <div class="spins">
+        <button type="button" data-spin="up">▲</button>
+        <button type="button" data-spin="down">▼</button>
+      </div>
+    </div>
+    <span class="hint" data-field="delay-hint"></span>
+  </div>
+  <div class="fl">
+    <span class="lbl">Behavior</span>
+    <div class="opt">Close when sim exits<button class="tog" data-flag="closeOnExit" aria-label="Close when sim exits" aria-pressed="false"><i></i></button></div>
+  </div>
+  <div class="fl">
+    <span class="lbl">Window</span>
+    <div class="opt">Start minimized<button class="tog" data-flag="minimized" aria-label="Start minimized" aria-pressed="false"><i></i></button></div>
+    <span class="hint">On by default. Turn off to open in a normal window.</span>
+  </div>
+  <div class="fl">
+    <label class="lbl" for="f-args">Launch arguments</label>
+    <input class="inp" id="f-args" placeholder="Optional" spellcheck="false">
+  </div>
+  <div class="row" style="margin-top:auto"><button class="sec dng" id="remove" style="flex:1">Remove</button></div>
+</template>
+
 <script src="app.js"></script>
 </body>
 </html>
