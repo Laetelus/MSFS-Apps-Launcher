@@ -24,6 +24,8 @@ from pathlib import Path
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", help="path to apps.json")
 parser.add_argument("--sim", help="override sim executable name (for development/testing)")
+parser.add_argument("--service", action="store_true",
+                    help="packaged build: run the launcher instead of the GUI (used by exe.xml)")
 ARGS = parser.parse_args()
 
 if getattr(sys, "frozen", False):
@@ -198,15 +200,21 @@ def main():
             log.info("GUI already running, not launching another instance")
         else:
             gui_path = HERE / "src" / "gui.py"
-            if gui_path.exists():
+            frozen = getattr(sys, "frozen", False)
+            if frozen:
+                # Packaged build: the GUI is this same exe, started without --service
+                cmd = [sys.executable, "--config", str(CONFIG), "--sim", sim]
+            elif gui_path.exists():
                 cmd = [sys.executable, str(gui_path), "--config", str(CONFIG), "--sim", sim]
+            else:
+                cmd = None
+                log.info("GUI not found at %s", gui_path)
+            if cmd:
                 if settings.get("startMinimized", True):
                     cmd.append("--minimized")
                 gui_proc = subprocess.Popen(cmd, cwd=HERE, creationflags=NO_WINDOW)
                 log.info("launched GUI (pid %s)%s", gui_proc.pid,
                          " minimized" if "--minimized" in cmd else "")
-            else:
-                log.info("GUI not found at %s", gui_path)
     except Exception as exc:
         log.info("failed to launch GUI: %s", exc)
     
@@ -232,12 +240,13 @@ def main():
 def is_admin():
     return bool(ctypes.windll.shell32.IsUserAnAdmin())
 
-if __name__ == "__main__":
+def run():
+    """Entry point: elevate if needed, then run the launcher."""
     try:
         if not is_admin():
             log.info("not elevated, relaunching as administrator")
             if getattr(sys, "frozen", False):
-                params = subprocess.list2cmdline(sys.argv[1:])          # exe: pass the same args
+                params = subprocess.list2cmdline(sys.argv[1:])          # exe: pass the same args (incl. --service)
             else:
                 params = subprocess.list2cmdline(
                     [str(Path(__file__).resolve()), *sys.argv[1:]])     # script: path + args
@@ -251,3 +260,7 @@ if __name__ == "__main__":
     except Exception:
         log.exception("launcher crashed")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    run()

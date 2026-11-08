@@ -13,6 +13,7 @@ DEFAULT_SETTINGS = {
     "startMinimized": True,
     "closeButtonAction": "tray",
     "minimizeButtonAction": "tray",
+    "setupDone": False,   # first-run exe.xml question has been answered
 }
 DEFAULT = {"lastGame": "", "profiles": {}, "settings": dict(DEFAULT_SETTINGS)}
 

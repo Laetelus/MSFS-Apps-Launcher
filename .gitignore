@@ -1,8 +1,10 @@
 build
 dist/
+release/
 __pycache__/
 *.log
 *.code-workspace
 *.spec
+!MSFSLauncher.spec
 *.json
 *.bak

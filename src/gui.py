@@ -32,6 +32,7 @@ except ImportError:
     HAS_SYSTRAY = False
 
 import config
+import exe_xml
 
 log = logging.getLogger("launcher")
 
@@ -48,8 +49,10 @@ log.info("System tray support available: %s", HAS_SYSTRAY)
 BASE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 if getattr(sys, "frozen", False):
     HERE = Path(sys.executable).resolve().parent
+    UI_DIR = BASE / "ui"          # bundled data lives next to the exe (or in _internal)
 else:
     HERE = Path(__file__).resolve().parent.parent  # running as a script (src/), go up to root
+    UI_DIR = HERE / "ui"
 
 GUI_LOCK_FILE = HERE / ".gui_running"
 GUI_PORT = 54321  # Port used for GUI singleton detection
@@ -160,6 +163,54 @@ class Api:
             return {"ok": True}
         except Exception as exc:
             log.error("Error saving settings: %s", exc)
+            return {"ok": False, "error": str(exc)}
+
+    # ---- exe.xml integration (the page only ever passes an install id, never a path) ----
+
+    @staticmethod
+    def _describe(install):
+        return {"id": install["id"], "sim": install["sim"], "store": install["store"],
+                **exe_xml.inspect(install["folder"])}
+
+    @staticmethod
+    def _find_install(install_id):
+        for install in exe_xml.installs():
+            if install["id"] == install_id:
+                return install
+        raise exe_xml.ExeXmlError("That MSFS installation was not found.")
+
+    def exe_xml_status(self):
+        """State of exe.xml for every MSFS installation found on this PC."""
+        return [self._describe(i) for i in exe_xml.installs()]
+
+    def _exe_xml_change(self, install_id, change):
+        try:
+            install = self._find_install(install_id)
+        except exe_xml.ExeXmlError as exc:
+            return {"ok": False, "error": str(exc), "status": None}
+        try:
+            result = change(install["folder"])
+            log.info("exe.xml (%s): %s%s", install_id, result["message"],
+                     f" backup: {result['backup']}" if result["backup"] else "")
+            return {"ok": True, **result, "status": self._describe(install)}
+        except exe_xml.ExeXmlError as exc:
+            log.error("exe.xml (%s) failed: %s", install_id, exc)
+            return {"ok": False, "error": str(exc), "status": self._describe(install)}
+        except Exception as exc:   # never let the page see a crash
+            log.exception("exe.xml (%s) unexpected error", install_id)
+            return {"ok": False, "error": f"Unexpected error: {exc}", "status": self._describe(install)}
+
+    def exe_xml_add(self, install_id):
+        return self._exe_xml_change(install_id, exe_xml.add)
+
+    def exe_xml_remove(self, install_id):
+        return self._exe_xml_change(install_id, exe_xml.remove)
+
+    def exe_xml_open_folder(self, install_id):
+        try:
+            exe_xml.open_folder(self._find_install(install_id)["folder"])
+            return {"ok": True}
+        except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
     def browse_exe(self, folder=None):
@@ -336,7 +387,7 @@ def main():
 
     # Create window
     api._window = webview.create_window(
-        "MSFS App Launcher", str(HERE / "ui" / "index.html"),
+        "MSFS App Launcher", str(UI_DIR / "index.html"),
         js_api=api, width=1160, height=720, min_size=(1160, 720))
     
     # Setup tray icon first (if available)

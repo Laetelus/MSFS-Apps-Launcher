@@ -110,6 +110,7 @@ window.addEventListener('pywebviewready', async () => {
   setInterval(renderLogs, 1000);
   
   render();  // Display everything
+  firstRunSetup();  // Offer to add the launcher to exe.xml the first time
 });
 
 // Logs panel toggle
@@ -135,6 +136,143 @@ document.addEventListener('click', async e => {
 document.addEventListener('change', e => {
   const s = e.target.closest('select[data-setting]');
   if (s && cfg) { cfg.settings[s.dataset.setting] = s.value; pywebview.api.save_settings(cfg.settings); }
+});
+
+/* ===== MSFS INTEGRATION (exe.xml) ===== */
+// Settings > MSFS integration: one row per MSFS installation found, with a status dot
+// (green = connected, red = something is wrong, grey = not added) and the actions that apply.
+const XACT = { add: ['Add', 'pri'], fix: ['Fix', 'pri'], remove: ['Remove', 'sec dng'] };
+const setNote = (el, note) => {
+  el.textContent = note ? note.text : '';
+  el.className = 'xnote' + (note ? (note.ok ? ' ok' : ' bad') : '');
+};
+
+function fillXRow(row, st, note) {
+  row.dataset.id = st.id;
+  row.dataset.state = st.state;
+  row.querySelector('.xname').textContent = `${st.sim} \u00b7 ${st.store}`;
+  row.querySelector('.xmsg').textContent = st.message;
+  const path = row.querySelector('.xpath');
+  path.textContent = path.title = st.path;
+  setNote(row.querySelector('.xnote'), note);
+  const open = document.createElement('button');
+  open.className = 'sec sm';
+  open.dataset.xopen = '';
+  open.textContent = 'Open folder';
+  const btns = [open];
+  for (const a of st.actions) {
+    const b = document.createElement('button');
+    b.className = XACT[a][1] + ' sm';
+    b.dataset.xact = a;
+    b.textContent = XACT[a][0];
+    btns.push(b);
+  }
+  row.querySelector('.xbtns').replaceChildren(...btns);
+}
+
+async function loadIntegration() {
+  const list = $('#xlist');
+  if (!list) return;
+  const items = await pywebview.api.exe_xml_status();
+  if (!list.isConnected) return;   // the page was closed while loading
+  if (!items.length) {
+    const none = document.createElement('div');
+    none.className = 'xempty';
+    none.textContent = 'No MSFS installation was found on this PC.';
+    list.replaceChildren(none);
+    return;
+  }
+  list.replaceChildren(...items.map(st => {
+    const row = template('xrow').firstElementChild;
+    fillXRow(row, st);
+    return row;
+  }));
+}
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('#xlist button');
+  if (!b) return;
+  const row = b.closest('.xrow'), id = row.dataset.id;
+  if (b.dataset.xopen !== undefined) { pywebview.api.exe_xml_open_folder(id); return; }
+  const buttons = row.querySelectorAll('button');
+  buttons.forEach(x => { x.disabled = true; });
+  setNote(row.querySelector('.xnote'), { ok: true, text: 'Working...' });
+  const r = await pywebview.api[b.dataset.xact === 'remove' ? 'exe_xml_remove' : 'exe_xml_add'](id);
+  if (r.status) {
+    const text = r.ok ? r.message + (r.backup ? ` Backup saved to ${r.backup}` : '') : r.error;
+    fillXRow(row, r.status, { ok: r.ok, text });
+  } else {
+    buttons.forEach(x => { x.disabled = false; });
+    setNote(row.querySelector('.xnote'), { ok: false, text: r.error });
+  }
+});
+
+// First time the GUI opens: offer to connect to exe.xml. "Not now" is remembered, and the
+// same thing stays available in Settings.
+async function firstRunSetup() {
+  if (!cfg || cfg.settings.setupDone) return;
+  const items = await pywebview.api.exe_xml_status();
+  const todo = items.filter(i => i.actions.includes('add') || i.actions.includes('fix'));
+  if (!todo.length) {
+    if (items.length && items.every(i => i.state === 'ok')) finishSetup();   // already connected
+    return;
+  }
+  const modal = $('#modal');
+  modal.replaceChildren(template('setup'));
+  const list = modal.querySelector('.mlist');
+  for (const st of todo) {
+    const row = template('mrow').firstElementChild;
+    row.dataset.id = st.id;
+    row.querySelector('.xdot').classList.add(st.state === 'error' ? 'error' : 'ok');   // green: location found
+    row.querySelector('.xname').textContent = `${st.sim} \u00b7 ${st.store}`;
+    row.querySelector('.xpath').textContent = st.path;
+    row.querySelector('.xpath').title = st.path;
+    list.append(row);
+  }
+  modal.hidden = false;
+  modal.querySelector('#msetup-add').focus();
+}
+
+function finishSetup() {
+  cfg.settings.setupDone = true;
+  pywebview.api.save_settings(cfg.settings);
+}
+
+function closeSetup(skipped) {
+  $('#modal').hidden = true;
+  $('#modal').replaceChildren();
+  finishSetup();
+  if (skipped) say('You can add the launcher to exe.xml later in Settings.');
+}
+
+document.addEventListener('click', async e => {
+  const modal = $('#modal');
+  if (modal.hidden) return;
+  if (e.target.closest('#msetup-skip')) { closeSetup(true); return; }
+  if (e.target.closest('#msetup-close')) { closeSetup(false); return; }
+  const add = e.target.closest('#msetup-add');
+  if (!add) return;
+  const rows = [...modal.querySelectorAll('.mrow')];
+  modal.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  let failed = 0;
+  for (const row of rows) {
+    const r = await pywebview.api.exe_xml_add(row.dataset.id);
+    row.querySelector('.xdot').className = 'xdot ' + (r.ok ? 'ok' : 'error');
+    setNote(row.querySelector('.xnote'), { ok: r.ok, text: r.ok ? r.message + (r.backup ? ` Backup saved to ${r.backup}` : '') : r.error });
+    if (!r.ok) failed++;
+  }
+  if (!failed) { setTimeout(() => closeSetup(false), 1800); say('Added to exe.xml.'); }
+  else {
+    const btn = modal.querySelector('#msetup-add');
+    btn.id = 'msetup-close';
+    btn.textContent = 'Close';
+    btn.disabled = false;
+    modal.querySelector('#msetup-skip').hidden = true;
+    finishSetup();
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('#modal').hidden && $('#msetup-skip') && !$('#msetup-skip').disabled) closeSetup(true);
 });
 
 /* ===== RENDERING FUNCTIONS ===== */
@@ -231,6 +369,7 @@ function renderSettings() {
   });
   enhanceSelects(page);
   $('#settingspage').replaceChildren(page);
+  loadIntegration();
 }
 
 // Main render function - update both list and detail panel,
