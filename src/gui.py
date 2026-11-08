@@ -115,6 +115,16 @@ class Api:
         self._running = True
         self._tray_icon = None
         self._sim_running = False
+        self._quitting = False   # True when the app is really exiting (not just hiding to tray)
+
+    def _setting(self, key, default=None):
+        """Read one GUI setting (the page and this object share the same config)."""
+        try:
+            if not self._cfg:
+                self._cfg = config.load(self._path)
+            return self._cfg.get("settings", {}).get(key, default)
+        except Exception:
+            return default
 
     def get_config(self):
         """Load full config with all profiles."""
@@ -131,6 +141,25 @@ class Api:
             config.save(self._path, cfg)
             return {"ok": True}
         except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def get_settings(self):
+        """Get current GUI settings."""
+        if not self._cfg:
+            self._cfg = config.load(self._path)
+        return self._cfg.get("settings", {})
+
+    def save_settings(self, settings):
+        """Save GUI settings."""
+        try:
+            if not self._cfg:
+                self._cfg = config.load(self._path)
+            self._cfg["settings"] = settings
+            config.save(self._path, self._cfg)
+            log.info("Settings saved: %s", settings)
+            return {"ok": True}
+        except Exception as exc:
+            log.error("Error saving settings: %s", exc)
             return {"ok": False, "error": str(exc)}
 
     def browse_exe(self, folder=None):
@@ -186,17 +215,27 @@ class Api:
             if sim_running != prev_running:
                 self._sim_running = sim_running
                 if not sim_running and prev_running:  # MSFS just stopped
-                    log.info("MSFS stopped, GUI remains open (user can still edit)")
+                    log.info("MSFS stopped")
+                    if self._setting("closeWithMSFS", False):
+                        log.info("Closing GUI because MSFS exited")
+                        self._close_app()
+                        return
                 elif sim_running and not prev_running:  # MSFS just started
                     log.info("MSFS started")
                 prev_running = sim_running
             time.sleep(2)
 
     def _close_app(self):
-        """Close the application."""
+        """Really exit the application (bypasses hide-to-tray)."""
+        self._quitting = True
+        self._running = False
+        if self._tray_icon:
+            try:
+                self._tray_icon.stop()
+            except Exception:
+                pass
         if self._window:
             self._window.destroy()
-        self._running = False
 
     def start_monitor(self):
         """Start MSFS monitoring thread."""
@@ -234,6 +273,7 @@ class Api:
             """Quit app from tray menu."""
             log.info("Quit selected from tray menu")
             self._running = False
+            self._quitting = True
             try:
                 if icon:
                     icon.stop()
@@ -272,12 +312,20 @@ class Api:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", help="path to apps.json")
-    parser.add_argument("--sim", help="override sim executable name", default="FlightSimulator.exe")
-    parser.add_argument("--minimized", action="store_true", help="start minimized to system tray")
+    parser.add_argument("--sim", help="override sim executable name")
+    parser.add_argument("--minimized", action="store_true", help="start hidden (tray) or minimized")
     args = parser.parse_args()
     path = Path(args.config) if args.config else HERE / "apps.json"
 
-    api = Api(path, sim_exe=args.sim)
+    # Without --sim, watch the game that was last selected in the GUI
+    sim_exe = args.sim
+    if not sim_exe:
+        try:
+            sim_exe = config.load(path).get("lastGame") or "FlightSimulator.exe"
+        except Exception:
+            sim_exe = "FlightSimulator.exe"
+
+    api = Api(path, sim_exe=sim_exe)
 
     # Try to create lock socket to indicate this instance is running
     lock_socket = create_gui_lock_socket()
@@ -296,30 +344,38 @@ def main():
         api._setup_tray_icon()
         time.sleep(0.5)  # Give tray icon time to initialize
     
-    # Start minimized to tray if requested (delay to ensure window is ready)
-    if args.minimized and HAS_SYSTRAY:
+    # Start hidden/minimized if requested (delay to ensure window is ready)
+    if args.minimized:
         def hide_to_tray():
             try:
                 time.sleep(1)  # Wait for webview to fully initialize
-                api._window.hide()
-                log.info("GUI minimized to system tray (launched by MSFS)")
+                if api._tray_icon:
+                    api._window.hide()
+                    log.info("GUI started hidden in system tray")
+                else:
+                    api._window.minimize()
+                    log.info("GUI started minimized to taskbar")
             except Exception as e:
-                log.error("Error hiding window to tray: %s", e)
+                log.error("Error starting minimized: %s", e)
         
         hide_thread = threading.Thread(target=hide_to_tray, daemon=True)
         hide_thread.start()
     
     # Setup event handlers
     def on_minimized(window):
-        """Hide window to tray on minimize."""
-        if HAS_SYSTRAY and api._tray_icon:
+        """Minimize button: hide to tray or stay on the taskbar, per settings."""
+        if api._tray_icon and api._setting("minimizeButtonAction", "tray") == "tray":
             window.hide()
             log.info("GUI minimized to system tray")
-        else:
-            window.minimize()
+        # "taskbar": the window is already minimized, nothing more to do
 
     def on_closing():
-        """Handle window close."""
+        """Close button: hide to tray or exit, per settings."""
+        if (not api._quitting and api._tray_icon
+                and api._setting("closeButtonAction", "tray") == "tray"):
+            api._window.hide()
+            log.info("GUI hidden to system tray (close button)")
+            return False   # cancel the close, keep running in the tray
         api._running = False
         if api._tray_icon:
             try:
@@ -335,10 +391,7 @@ def main():
         return True
     
     api._window.events.closing += on_closing
-    
-    # Only use tray minimize if pystray is available
-    if HAS_SYSTRAY:
-        api._window.events.minimized += on_minimized
+    api._window.events.minimized += on_minimized
 
     # Start MSFS monitoring (doesn't block GUI, just monitors)
     api.start_monitor()

@@ -5,6 +5,7 @@ let cfg = null,           // Full config object with all profiles
     sel = -1,             // Currently selected app index in the current profile
     dragFrom = -1,        // Track drag-and-drop source index
     picking = false,      // True while the "choose your game" list is showing
+    viewingSettings = false, // True while the settings page is showing
     unsaved = false,      // True when there are unsaved changes
     pathValidity = {};    // Cache of path validity checks {path: true/false}
 
@@ -93,6 +94,7 @@ async function checkAllPaths() {
 // When page loads and connects to Python backend
 window.addEventListener('pywebviewready', async () => {
   cfg = await pywebview.api.get_config();  // Load full config with all profiles
+  cfg.settings = cfg.settings || {};       // GUI settings live inside the config
   // Restore the last selected game, or pick the first one
   const games = Object.keys(cfg.profiles || {});
   curGame = cfg.lastGame && games.includes(cfg.lastGame) ? cfg.lastGame : games[0] || '';
@@ -112,11 +114,27 @@ window.addEventListener('pywebviewready', async () => {
 
 // Logs panel toggle
 document.addEventListener('click', e => {
-  if (e.target.id === 'logstoggle') {
-    const panel = $('#logspanel');
-    const isCollapsed = panel.classList.toggle('collapsed');
-    e.target.textContent = isCollapsed ? '+' : '−';
+  if (e.target.closest('.logs-header')) {
+    $('#logspanel').classList.toggle('collapsed');
   }
+});
+
+// Settings page: open/close, toggles and dropdowns (saved immediately)
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-act="settings"], [data-act="settingsback"]');
+  if (b && cfg) { viewingSettings = b.dataset.act === 'settings'; await render(); return; }
+  const t = e.target.closest('.tog[data-setting]');
+  if (t && cfg) {
+    const key = t.dataset.setting;
+    cfg.settings[key] = !cfg.settings[key];
+    t.classList.toggle('on', cfg.settings[key]);
+    t.setAttribute('aria-pressed', String(cfg.settings[key]));
+    pywebview.api.save_settings(cfg.settings);
+  }
+});
+document.addEventListener('change', e => {
+  const s = e.target.closest('select[data-setting]');
+  if (s && cfg) { cfg.settings[s.dataset.setting] = s.value; pywebview.api.save_settings(cfg.settings); }
 });
 
 /* ===== RENDERING FUNCTIONS ===== */
@@ -139,9 +157,90 @@ function chips(a) {
   return result;
 }
 
-// Main render function - update both list and detail panel
+// Themed dropdown used for every <select>. The real <select> stays in the page (hidden)
+// so values and change events keep working; the popup list is our own, not the grey OS one.
+function enhanceSelects(root) {
+  root.querySelectorAll('select').forEach(select => {
+    const dd = document.createElement('div');
+    dd.className = 'dd';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dd-btn';
+    btn.setAttribute('aria-haspopup', 'listbox');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-label', select.getAttribute('aria-label') || '');
+    const label = document.createElement('span');
+    btn.append(label);
+    btn.insertAdjacentHTML('beforeend', '<svg class="dd-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg>');
+    const menu = document.createElement('div');
+    menu.className = 'dd-menu';
+    menu.setAttribute('role', 'listbox');
+    const sync = () => {
+      label.textContent = select.options[select.selectedIndex]?.textContent || '';
+      menu.querySelectorAll('.dd-opt').forEach(o => o.classList.toggle('on', o.dataset.v === select.value));
+    };
+    for (const opt of select.options) {
+      const o = document.createElement('div');
+      o.className = 'dd-opt';
+      o.setAttribute('role', 'option');
+      o.dataset.v = opt.value;
+      o.textContent = opt.textContent;
+      menu.append(o);
+    }
+    select.classList.add('dd-native');
+    select.before(dd);
+    dd.append(btn, menu, select);
+    sync();
+  });
+}
+const closeDropdowns = except => document.querySelectorAll('.dd.open').forEach(d => {
+  if (d !== except) { d.classList.remove('open'); d.querySelector('.dd-btn').setAttribute('aria-expanded', 'false'); }
+});
+document.addEventListener('click', e => {
+  const opt = e.target.closest('.dd-opt');
+  if (opt) {
+    const dd = opt.closest('.dd'), select = dd.querySelector('select');
+    select.value = opt.dataset.v;
+    dd.querySelector('.dd-btn span').textContent = opt.textContent;
+    dd.querySelectorAll('.dd-opt').forEach(o => o.classList.toggle('on', o === opt));
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    closeDropdowns();
+    return;
+  }
+  const btn = e.target.closest('.dd-btn');
+  if (btn) {
+    const dd = btn.closest('.dd'), open = !dd.classList.contains('open');
+    closeDropdowns(dd);
+    dd.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', String(open));
+    return;
+  }
+  closeDropdowns();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDropdowns(); });
+
+// Fill the settings page with the saved values
+function renderSettings() {
+  const page = template('settings');
+  page.querySelectorAll('[data-setting]').forEach(el => {
+    const v = cfg.settings[el.dataset.setting];
+    if (el.classList.contains('tog')) {
+      el.classList.toggle('on', !!v);
+      el.setAttribute('aria-pressed', String(!!v));
+    } else if (v !== undefined) el.value = v;
+  });
+  enhanceSelects(page);
+  $('#settingspage').replaceChildren(page);
+}
+
+// Main render function - update both list and detail panel,
+// or show the standalone settings page instead of both
 async function render() { 
   await checkAllPaths();
+  $('#main').hidden = $('#det').hidden = viewingSettings;
+  $('#settingspage').hidden = !viewingSettings;
+  document.querySelector('.side-btn').classList.toggle('active', viewingSettings);
+  if (viewingSettings) { renderSettings(); return; }
   renderList();
   renderDetail();
 }
@@ -287,7 +386,7 @@ document.addEventListener('click', async e => {
   }
   
   // Add or change the game
-  if (t.dataset.act === 'addgame') { picking = true; await render(); return; }
+  if (t.dataset.act === 'addgame') { picking = true; viewingSettings = false; await render(); return; }
   if (t.dataset.act === 'gamecancel') { picking = false; await render(); return; }
   if (t.dataset.game || t.dataset.act === 'gamebrowse') {
     let exe = t.dataset.game;
@@ -326,7 +425,7 @@ document.addEventListener('click', async e => {
     touch(); await render(); return;
   }
   // Click on app card to select it
-  if (t.dataset.i !== undefined) { sel = +t.dataset.i; await render(); return; }
+  if (t.dataset.i !== undefined) { sel = +t.dataset.i; viewingSettings = false; await render(); return; }
   // Add new app button
   if (t.id === 'add') {
     const p = await pywebview.api.browse_exe(); if (!p) return;

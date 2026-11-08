@@ -189,19 +189,24 @@ def main():
     start = time.time()
     launched = []
     
-    # Launch the GUI app (minimized to tray) - but only if not already running
-    gui_proc = None
+    # Launch the GUI only if the "Launch with MSFS" setting is on (and it isn't already running)
+    settings = cfg.get("settings", {})
     try:
-        if not is_gui_running():
+        if not settings.get("launchWithMSFS", False):
+            log.info("GUI launch disabled in settings, not starting it")
+        elif is_gui_running():
+            log.info("GUI already running, not launching another instance")
+        else:
             gui_path = HERE / "src" / "gui.py"
             if gui_path.exists():
-                cmd = [sys.executable, str(gui_path), "--config", str(CONFIG), "--sim", sim, "--minimized"]
+                cmd = [sys.executable, str(gui_path), "--config", str(CONFIG), "--sim", sim]
+                if settings.get("startMinimized", True):
+                    cmd.append("--minimized")
                 gui_proc = subprocess.Popen(cmd, cwd=HERE, creationflags=NO_WINDOW)
-                log.info("launched GUI (pid %s) minimized to tray", gui_proc.pid)
+                log.info("launched GUI (pid %s)%s", gui_proc.pid,
+                         " minimized" if "--minimized" in cmd else "")
             else:
                 log.info("GUI not found at %s", gui_path)
-        else:
-            log.info("GUI already running, not launching another instance")
     except Exception as exc:
         log.info("failed to launch GUI: %s", exc)
     
@@ -219,18 +224,7 @@ def main():
         time.sleep(1)
 
     log.info("sim exited, closing apps")
-    
-    # Only close GUI if we launched it (gui_proc is not None)
-    if gui_proc:
-        try:
-            gui_proc.terminate()
-            gui_proc.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            gui_proc.kill()
-        except Exception as exc:
-            log.info("error closing GUI: %s", exc)
-    else:
-        log.info("GUI was already running, leaving it open")
+    # The GUI closes itself when the sim exits if "Close with MSFS" is on (see gui.py)
     
     close_all(launched)
     

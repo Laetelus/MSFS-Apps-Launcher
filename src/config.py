@@ -7,7 +7,14 @@ from pathlib import Path
 
 # Default structure with per-game profiles
 DEFAULT_PROFILE = {"apps": []}
-DEFAULT = {"lastGame": "", "profiles": {}}
+DEFAULT_SETTINGS = {
+    "launchWithMSFS": False,
+    "closeWithMSFS": False,
+    "startMinimized": True,
+    "closeButtonAction": "tray",
+    "minimizeButtonAction": "tray",
+}
+DEFAULT = {"lastGame": "", "profiles": {}, "settings": dict(DEFAULT_SETTINGS)}
 
 
 def load(path):
@@ -29,6 +36,11 @@ def load(path):
             profiles[sim] = {"apps": apps}
         
         cfg = {"lastGame": sim, "profiles": profiles}
+    
+    # Fill in any settings missing from older files
+    settings = cfg.setdefault("settings", {})
+    for key, value in DEFAULT_SETTINGS.items():
+        settings.setdefault(key, value)
     
     return cfg
 

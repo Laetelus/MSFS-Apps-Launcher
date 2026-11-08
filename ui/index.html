@@ -20,14 +20,16 @@
   <div class="logs-panel" id="logspanel">
     <div class="logs-header">
       <div class="logs-title">Activity Log</div>
-      <button class="logs-close" id="logstoggle" aria-label="Toggle logs">−</button>
+      <button class="logs-close" id="logstoggle" aria-label="Toggle logs"><svg class="dd-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></button>
     </div>
     <div class="logs-content" id="logscontent"></div>
   </div>
+  <!-- SETTINGS - opens the settings page in the main area -->
+  <button class="side-btn" data-act="settings"><span class="logs-title">Settings</span></button>
 </div>
 
 <!-- MAIN CONTENT AREA - App list and controls -->
-<div class="main">
+<div class="main" id="main">
   <!-- Header with title and Add App button -->
   <div class="hd">
     <div>
@@ -49,6 +51,9 @@
 
 <!-- RIGHT DETAILS PANEL - Edit selected app settings -->
 <div class="det" id="det"></div>
+
+<!-- SETTINGS PAGE - standalone page, replaces the main area and details panel -->
+<div class="spage" id="settingspage" hidden></div>
 
 <!-- Reusable markup for UI rendered from the current configuration. -->
 <template id="tpl-log-entry">
@@ -137,6 +142,52 @@
     <input class="inp" id="f-args" placeholder="Optional" spellcheck="false">
   </div>
   <div class="row" style="margin-top:auto"><button class="sec dng" id="remove" style="flex:1">Remove</button></div>
+</template>
+
+<template id="tpl-settings">
+  <div class="spage-in">
+    <div class="spage-hd">
+      <div>
+        <div class="spage-title">Settings</div>
+        <div class="spage-sub">Changes are saved automatically.</div>
+      </div>
+      <button class="sec" data-act="settingsback">&larr; Back to apps</button>
+    </div>
+
+    <div class="scard">
+      <div class="scard-t">Startup</div>
+      <div class="srow">
+        <div class="stxt"><b>Launch with MSFS</b><span>Open this app automatically when the sim starts.</span></div>
+        <button class="tog" data-setting="launchWithMSFS" aria-label="Launch with MSFS" aria-pressed="false"><i></i></button>
+      </div>
+      <div class="srow">
+        <div class="stxt"><b>Close with MSFS</b><span>Close this app when the sim exits.</span></div>
+        <button class="tog" data-setting="closeWithMSFS" aria-label="Close with MSFS" aria-pressed="false"><i></i></button>
+      </div>
+      <div class="srow">
+        <div class="stxt"><b>Start minimized</b><span>Open in the background without showing the window.</span></div>
+        <button class="tog" data-setting="startMinimized" aria-label="Start minimized" aria-pressed="false"><i></i></button>
+      </div>
+    </div>
+
+    <div class="scard">
+      <div class="scard-t">Window behavior</div>
+      <div class="srow">
+        <div class="stxt"><b>Close button</b><span>What the X button does.</span></div>
+        <select data-setting="closeButtonAction" aria-label="Close button action">
+          <option value="tray">Minimize to tray</option>
+          <option value="exit">Exit</option>
+        </select>
+      </div>
+      <div class="srow">
+        <div class="stxt"><b>Minimize button</b><span>What the minimize button does.</span></div>
+        <select data-setting="minimizeButtonAction" aria-label="Minimize button action">
+          <option value="tray">Minimize to tray</option>
+          <option value="taskbar">Minimize to taskbar</option>
+        </select>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script src="app.js"></script>
