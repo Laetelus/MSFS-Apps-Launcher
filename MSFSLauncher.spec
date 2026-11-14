@@ -13,7 +13,7 @@ hiddenimports = ['pystray._win32']   # pystray picks its backend at run time
 tmp_ret = collect_all('SimConnect')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
-# Optional icon: drop a file at assets/launcher.ico to use it
+# App icon: made by src/generate_icon.py (build.bat runs it first)
 icon_file = os.path.join(SPECPATH, 'assets', 'launcher.ico')
 icon = [icon_file] if os.path.exists(icon_file) else None
 
@@ -27,7 +27,10 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # Installed on the build PC but not used by the app (pywebview uses Edge WebView2 via
+    # WinForms, not Qt; nothing imports numpy). Leaving them in adds ~120 MB.
+    excludes=['PyQt5', 'PyQt6', 'PySide2', 'PySide6', 'qtpy', 'numpy', 'tkinter',
+              'matplotlib', 'pandas', 'scipy'],
     noarchive=False,
     optimize=0,
 )

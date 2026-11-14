@@ -6,14 +6,31 @@ Starts your Microsoft Flight Simulator companion apps automatically when the sim
 
 Configure your apps using the built-in GUI, which includes system tray support for convenient access. Or edit `apps.json` manually for advanced use.
 
-# Requirements
+# Download and install (no Python needed)
+
+1. Download `MSFSLauncher-vX.Y.Z.zip` from the [Releases page](https://github.com/Laetelus/MSFS-Apps-Launcher/releases).
+2. Unzip it somewhere permanent where you can write files, for example `C:\MSFS Launcher\`. Not inside `Program Files`.
+3. Run `MSFSLauncher\MSFSLauncher.exe`. Keep the `_internal` folder next to it.
+4. Windows may say **"Windows protected your PC"** because the exe isn't code-signed. Click **More info**, then **Run anyway**.
+5. On first run, the app asks whether to add itself to MSFS's `exe.xml`; that's how MSFS starts it with the sim. Press **Add to exe.xml**, or **Not now** to do it later in **Settings > MSFS integration**.
+6. Pick your game (MSFS 2024 or 2020), add your apps, and press **Save**. They start the next time the sim does. You can also start the sim with **Start MSFS** in the app.
+
+Good to know:
+- When the sim starts, Windows asks for administrator permission for the launcher, so it can start and close your apps.
+- Your settings (`apps.json`) and logs (`launcher.log`, `gui.log`) are saved next to the exe. To update, unzip the new version over the old folder; your settings stay.
+- If you move the folder, open the app and press **Fix** in **Settings > MSFS integration**.
+- Requires Windows 10 or 11 with the Microsoft Edge WebView2 Runtime (included in Windows 11 and up-to-date Windows 10).
+
+# Build it yourself
+
+## Requirements
 
 - Windows
-- Python from the official site: <https://www.python.org/downloads/>. In the installer, **tick "Add python.exe to PATH"** on the first screen. It is needed to run `build.bat`, even if you only use the built exe afterwards.
+- Python from the official site: <https://www.python.org/downloads/>. In the installer, **tick "Add python.exe to PATH"** on the first screen.
 
 `build.bat` installs the Python packages it needs by itself.
 
-# Install
+## Build
 
 1. Make sure Python is installed (see Requirements).
 2. Clone this repository (or download it as a zip and unzip it).

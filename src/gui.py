@@ -158,22 +158,26 @@ activity = logging.getLogger("launcher.activity")
 
 
 def create_tray_icon():
-    """Create a system tray icon image (red circle with 'M' for MSFS)."""
+    """The tray icon: the same artwork as the exe / taskbar icon (generate_icon.py)."""
     if not HAS_SYSTRAY:
         return None
     try:
-        # Create a 64x64 icon image
-        img = Image.new('RGB', (64, 64), color=(50, 50, 50))  # Dark gray background
-        draw = ImageDraw.Draw(img)
-        # Draw red circle
-        draw.ellipse([10, 10, 54, 54], fill=(220, 20, 60), outline=(255, 255, 255))
-        # Draw white "M" text
-        draw.text((20, 16), "M", fill=(255, 255, 255))
+        import generate_icon
+        img = generate_icon.render(64)
         log.info("Tray icon image created successfully")
         return img
     except Exception as e:
         log.error("Failed to create tray icon image: %s", e)
         return None
+
+
+def use_own_taskbar_identity():
+    """Give the process its own taskbar identity. Without this, running from source
+    groups the window under python.exe and shows Python's icon on the taskbar."""
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MSFSAppLauncher.GUI")
+    except Exception:
+        pass
 
 
 class Api:
@@ -603,6 +607,7 @@ def main():
 
     api = Api(path, sim_exe=sim_exe)
     activity.addHandler(ActivityLogHandler(path.parent / "launcher.log"))
+    use_own_taskbar_identity()
 
     # Create the window hidden: it is only shown (centered) once the page has rendered,
     # so you never see the blank/black frame WebView2 paints while it starts up.
@@ -713,7 +718,9 @@ def main():
     api.start_monitor()
 
     # Run the window
-    webview.start()
+    # Window + taskbar icon. The packaged exe already carries it; from source, use the file.
+    icon = HERE / "assets" / "launcher.ico"
+    webview.start(icon=str(icon) if not getattr(sys, "frozen", False) and icon.exists() else None)
 
 
 if __name__ == "__main__":

@@ -32,6 +32,11 @@ echo Installing build tools and libraries...
 if errorlevel 1 goto failed
 
 echo.
+echo Generating the app icon...
+%PY% src\generate_icon.py
+if errorlevel 1 goto failed
+
+echo.
 echo Building the exe...
 set "KEEP=%TEMP%\MSFSLauncher-apps.json.keep"
 if exist "dist\MSFSLauncher\apps.json" copy /y "dist\MSFSLauncher\apps.json" "%KEEP%" >nul
