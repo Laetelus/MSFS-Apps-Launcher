@@ -47,19 +47,45 @@ def installs():
     roaming = os.environ.get("APPDATA")
     store = "Microsoft Store / Xbox"
     candidates = []
+    # (id, sim, store, data folder, sim executable, URI that starts the sim)
     if local:
         pk = Path(local) / "Packages"
         candidates += [
-            ("2024-store", "MSFS 2024", store, pk / "Microsoft.Limitless_8wekyb3d8bbwe" / "LocalCache"),
-            ("2020-store", "MSFS 2020", store, pk / "Microsoft.FlightSimulator_8wekyb3d8bbwe" / "LocalCache"),
+            ("2024-store", "MSFS 2024", store, pk / "Microsoft.Limitless_8wekyb3d8bbwe" / "LocalCache",
+             "FlightSimulator2024.exe", r"shell:AppsFolder\Microsoft.Limitless_8wekyb3d8bbwe!App"),
+            ("2020-store", "MSFS 2020", store, pk / "Microsoft.FlightSimulator_8wekyb3d8bbwe" / "LocalCache",
+             "FlightSimulator.exe", r"shell:AppsFolder\Microsoft.FlightSimulator_8wekyb3d8bbwe!App"),
         ]
     if roaming:
         candidates += [
-            ("2024-steam", "MSFS 2024", "Steam", Path(roaming) / "Microsoft Flight Simulator 2024"),
-            ("2020-steam", "MSFS 2020", "Steam", Path(roaming) / "Microsoft Flight Simulator"),
+            ("2024-steam", "MSFS 2024", "Steam", Path(roaming) / "Microsoft Flight Simulator 2024",
+             "FlightSimulator2024.exe", "steam://rungameid/2537590"),
+            ("2020-steam", "MSFS 2020", "Steam", Path(roaming) / "Microsoft Flight Simulator",
+             "FlightSimulator.exe", "steam://rungameid/1250410"),
         ]
-    return [{"id": i, "sim": sim, "store": st, "folder": folder}
-            for i, sim, st, folder in candidates if folder.is_dir()]
+    return [{"id": i, "sim": sim, "store": st, "folder": folder, "exe": exe, "launch": uri}
+            for i, sim, st, folder, exe, uri in candidates if folder.is_dir()]
+
+
+def install_for_exe(exe_name):
+    """The installation that runs this sim executable, or None.
+    With both a Store and a Steam copy, prefer the one whose exe.xml starts this launcher."""
+    matches = [i for i in installs() if i["exe"].lower() == (exe_name or "").lower()]
+    for install in matches:
+        try:
+            if inspect(install["folder"]).get("state") == "ok":
+                return install
+        except Exception:
+            pass
+    return matches[0] if matches else None
+
+
+def start_sim(install):
+    """Start the sim through the Store app or Steam (does not wait for it)."""
+    try:
+        os.startfile(install["launch"])
+    except OSError as exc:
+        raise ExeXmlError(f"Could not start {install['sim']} ({install['store']}): {exc}") from exc
 
 
 def exe_xml_path(folder):

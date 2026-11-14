@@ -14,6 +14,7 @@ Features:
 """
 import argparse
 import ctypes
+import json
 import logging
 import os
 import re
@@ -63,6 +64,7 @@ NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 SHOW_MESSAGE = b"show"
+LAUNCH_APPEAR_SECONDS = 30    # after Start MSFS, give up if the sim process never appears
 WINDOW_BG = "#0a1628"          # matches --bg in ui/style.css (shown before the page paints)
 SHOW_FALLBACK_SECONDS = 8      # show the window even if the page never reports "loaded"
 LOG_LINE = re.compile(r"^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2},\d+)\s+(.*)$")
@@ -133,6 +135,27 @@ def is_running(exe_name):
         return False
 
 
+class ActivityLogHandler(logging.Handler):
+    """Append a record to launcher.log (the file the Activity Log panel shows).
+    Opens and closes the file per line, so the launcher can still rotate it."""
+
+    def __init__(self, path):
+        super().__init__(logging.INFO)
+        self.path = Path(path)
+        self.setFormatter(logging.Formatter("%(asctime)s  %(message)s"))
+
+    def emit(self, record):
+        try:
+            with open(self.path, "a", encoding="utf-8") as f:
+                f.write(self.format(record) + "\n")
+        except Exception:
+            pass   # the log panel is a convenience; never fail an action over it
+
+
+# Messages meant for the Activity Log panel (also printed like every other GUI message)
+activity = logging.getLogger("launcher.activity")
+
+
 def create_tray_icon():
     """Create a system tray icon image (red circle with 'M' for MSFS)."""
     if not HAS_SYSTRAY:
@@ -166,6 +189,9 @@ class Api:
         self._sim_running = False
         self._quitting = False   # True when the app is really exiting (not just hiding to tray)
         self._log_cache = (None, [])   # ((mtime, size), parsed entries) of launcher.log
+        self._watch_changed = threading.Event()   # set when the page switches games
+        self._wake = threading.Event()            # wakes the monitor early
+        self._launch_deadline = None   # set while a GUI start waits for the sim process
 
     def _setting(self, key, default=None):
         """Read one GUI setting (the page and this object share the same config)."""
@@ -318,13 +344,82 @@ class Api:
         """Check if MSFS is currently running."""
         return is_running(self._sim_exe)
 
+    # ---- sim status + Start button (the page passes the game exe, never a path) ----
+
+    def sim_state(self):
+        """What the header shows: is the watched sim running / starting, can we start it?"""
+        install = exe_xml.install_for_exe(self._sim_exe)
+        return {**self._sim_status(),
+                "launchable": install is not None,
+                "store": install["store"] if install else None}
+
+    def _sim_status(self):
+        return {"exe": self._sim_exe,
+                "running": bool(self._sim_running),
+                "starting": self._launch_deadline is not None}
+
+    def watch_game(self, exe_name):
+        """The page switched games: watch that exe from now on. Returns the new state."""
+        exe_name = (exe_name or "").strip()
+        if exe_name and exe_name.lower() != self._sim_exe.lower():
+            log.info("Now watching %s", exe_name)
+            self._sim_exe = exe_name
+            self._sim_running = is_running(exe_name)
+            self._launch_deadline = None   # a start of the other game doesn't apply here
+            self._watch_changed.set()      # monitor restarts its "previous state" (no false exit)
+            self._wake.set()
+        return self.sim_state()
+
+    def launch_sim(self):
+        """Start the watched sim via its Store app or Steam."""
+        if is_running(self._sim_exe):
+            return {"ok": False, "error": "The sim is already running."}
+        install = exe_xml.install_for_exe(self._sim_exe)
+        if not install:
+            return {"ok": False, "error": f"No MSFS installation found that runs {self._sim_exe}."}
+        try:
+            exe_xml.start_sim(install)
+        except exe_xml.ExeXmlError as exc:
+            log.error("%s", exc)
+            return {"ok": False, "error": str(exc)}
+        activity.info("Starting %s from the GUI (%s)", install["sim"], install["store"])
+        # "Starting" until the process shows up; the monitor checks faster meanwhile
+        self._launch_deadline = time.time() + LAUNCH_APPEAR_SECONDS
+        self._wake.set()
+        return {"ok": True, **self._sim_status()}
+
+    def _push_sim_state(self, **extra):
+        """Tell the page the sim state changed (no polling from the page)."""
+        if not self._window:
+            return
+        try:
+            state = json.dumps({**self._sim_status(), **extra})
+            self._window.evaluate_js(f"window.onSimState && window.onSimState({state})")
+        except Exception:
+            pass   # page not loaded yet; it asks for sim_state() itself when ready
+
     def _monitor_msfs(self):
         """Background thread: monitor MSFS and optionally close GUI if it stops."""
         prev_running = None
         while self._running:
+            if self._watch_changed.is_set():   # a different game is watched now
+                self._watch_changed.clear()
+                prev_running = None
             sim_running = is_running(self._sim_exe)
-            if sim_running != prev_running:
+
+            # A start from the GUI: done once the process appears, given up after a while
+            launch_timed_out = False
+            if self._launch_deadline is not None:
+                if sim_running:
+                    self._launch_deadline = None
+                elif time.time() > self._launch_deadline:
+                    self._launch_deadline = None
+                    launch_timed_out = True
+                    activity.info("%s did not start within %ss", self._sim_exe, LAUNCH_APPEAR_SECONDS)
+
+            if sim_running != prev_running or launch_timed_out:
                 self._sim_running = sim_running
+                self._push_sim_state(timedOut=launch_timed_out)
                 if not sim_running and prev_running:  # MSFS just stopped
                     log.info("MSFS stopped")
                     if self._setting("closeWithMSFS", False):
@@ -334,7 +429,11 @@ class Api:
                 elif sim_running and not prev_running:  # MSFS just started
                     log.info("MSFS started")
                 prev_running = sim_running
-            time.sleep(2)
+
+            # Check every 2 s; every 0.5 s while starting, so a quick start-then-close is seen.
+            # Wakes early when the page switches games or presses Start.
+            self._wake.wait(0.5 if self._launch_deadline is not None else 2)
+            self._wake.clear()
 
     def _close_app(self):
         """Really exit the application (bypasses hide-to-tray)."""
@@ -466,6 +565,7 @@ def main():
         return
 
     api = Api(path, sim_exe=sim_exe)
+    activity.addHandler(ActivityLogHandler(path.parent / "launcher.log"))
 
     # Create the window hidden: it is only shown (centered) once the page has rendered,
     # so you never see the blank/black frame WebView2 paints while it starts up.

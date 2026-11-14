@@ -118,6 +118,132 @@ h1 {
   font-weight: 600;
 }
 
+/* Title with the sim status pill beside it */
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Right side of the header: Start MSFS, Add app */
+.hd-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.hd-actions button {
+  white-space: nowrap;
+}
+
+.simpill[hidden],
+.simbtn[hidden] {
+  display: none;
+}
+
+/* Status pill: grey = not running, amber pulsing = starting, green = running */
+.simpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mute);
+  border: 1px solid rgba(147, 162, 177, 0.25);
+  background: rgba(10, 15, 19, 0.35);
+  white-space: nowrap;
+}
+
+.simpill i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6b7a88;
+}
+
+.simpill[data-state="on"] {
+  color: #7EE2A8;
+  border-color: rgba(76, 217, 135, 0.35);
+}
+
+.simpill[data-state="on"] i {
+  background: #4CD987;
+  box-shadow: 0 0 8px rgba(76, 217, 135, 0.7);
+}
+
+.simpill[data-state="starting"] {
+  color: #FFD27A;
+  border-color: rgba(255, 196, 77, 0.35);
+}
+
+.simpill[data-state="starting"] i {
+  background: #FFC44D;
+  animation: simpulse 1s ease-in-out infinite;
+}
+
+@keyframes simpulse {
+  50% { opacity: 0.3; }
+}
+
+/* Header buttons (Start MSFS, Add app): identical size and shape.
+   ".hd-actions" makes these win over the generic .pri/.sec rules further down. */
+.hd-actions .hbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  min-width: 120px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  border-width: 1px;
+  border-style: solid;
+  box-shadow: none;
+}
+
+.hbtn svg {
+  flex-shrink: 0;
+}
+
+/* Add app: same 1px edge as Start MSFS (in its own blue), no glow outside the box */
+.hd-actions .pri.hbtn {
+  border-color: #3fb3ee;
+}
+
+/* Same calm hover for both: a little brighter, no jump, no glow */
+.hd-actions .pri.hbtn:hover {
+  transform: none;
+  filter: brightness(1.08);
+  box-shadow: none;
+}
+
+.hd-actions .simbtn {
+  color: var(--text);
+  border-color: rgba(76, 194, 255, 0.35);
+}
+
+.simbtn svg {
+  color: var(--acc);
+}
+
+.simbtn:hover:not(:disabled) {
+  border-color: rgba(76, 194, 255, 0.6);
+  background: rgba(76, 194, 255, 0.08);
+}
+
+.simbtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .sub {
   color: var(--mute);
   font-size: 13px;

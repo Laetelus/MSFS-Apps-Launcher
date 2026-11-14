@@ -33,12 +33,20 @@
   <!-- Header with title and Add App button -->
   <div class="hd">
     <div>
-      <h1 id="title"></h1>
+      <div class="title-row">
+        <h1 id="title"></h1>
+        <!-- Sim status (state pushed from gui.py via window.onSimState) -->
+        <span class="simpill" id="simpill" data-state="off" hidden><i></i><span id="simtext">Not running</span></span>
+      </div>
       <!-- Display current game executable -->
       <div class="sub" id="watch">Watching for <span id="sim" style="font-weight:500"></span></div>
     </div>
-    <!-- Button to add new app -->
-    <button class="pri" id="add">+ Add app</button>
+    <div class="hd-actions">
+      <!-- Starts the selected game through the Xbox app or Steam -->
+      <button class="sec hbtn simbtn" id="launchsim" hidden><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.8v8.4a.6.6 0 0 0 .9.5l6.9-4.2a.6.6 0 0 0 0-1L3.9 1.3a.6.6 0 0 0-.9.5z" fill="currentColor"/></svg><span id="launchsimtext">Start MSFS</span></button>
+      <!-- Button to add new app -->
+      <button class="pri hbtn" id="add"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Add app</button>
+    </div>
   </div>
   <!-- App counter label -->
   <div class="lbl" id="count"></div>

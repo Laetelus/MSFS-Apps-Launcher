@@ -71,6 +71,55 @@ const renderLogs = async () => {
   if (logPinned) logBox.scrollTop = logBox.scrollHeight;   // only follow if already at the bottom
 };
 
+/* ===== SIM STATUS + START BUTTON ===== */
+// gui.py owns the state (running / starting) and pushes every change via
+// window.onSimState, so the page never polls and never guesses.
+let sim = { exe: '', running: false, launchable: false, starting: false };
+
+function renderSim() {
+  const pill = $('#simpill'), btn = $('#launchsim');
+  const show = !!curGame && !!profile() && !picking;
+  pill.hidden = !show;
+  btn.hidden = !show || !sim.launchable;   // no detected Store/Steam install: can't start it
+  if (!show) return;
+  const state = sim.running ? 'on' : sim.starting ? 'starting' : 'off';
+  pill.dataset.state = state;
+  $('#simtext').textContent = { on: 'Running', starting: 'Starting…', off: 'Not running' }[state];
+  btn.disabled = state !== 'off';
+  $('#launchsimtext').textContent = state === 'starting' ? 'Starting…' : 'Start MSFS';
+}
+
+window.onSimState = s => {
+  if (s.exe !== sim.exe) return;   // state of a game we no longer show
+  const wasStarting = sim.starting;
+  sim.running = s.running;
+  sim.starting = s.starting;
+  if (s.timedOut) say("MSFS didn't start. Check the Xbox app or Steam, then try again.");
+  else if (wasStarting && !s.starting && !s.running) say('MSFS closed before it finished starting.');
+  renderSim();
+};
+
+// Point the watcher at the selected game and refresh the header
+async function syncSimWatch() {
+  if (!curGame) { renderSim(); return; }
+  Object.assign(sim, await pywebview.api.watch_game(curGame));
+  renderSim();
+}
+
+document.addEventListener('click', async e => {
+  if (!e.target.closest('#launchsim')) return;
+  sim.starting = true;   // show it right away; gui.py confirms with the result below
+  renderSim();
+  const r = await pywebview.api.launch_sim();
+  if (!r.ok) {
+    sim.starting = false; renderSim(); say(r.error);
+    return;
+  }
+  sim.running = r.running; sim.starting = r.starting;
+  renderSim();
+  say('Starting MSFS. Your apps start with it as usual.');
+});
+
 // Get the current profile
 const profile = () => cfg.profiles[curGame] || null;
 
@@ -119,6 +168,7 @@ window.addEventListener('pywebviewready', async () => {
   setInterval(renderLogs, 1000);
   
   render();  // Display everything
+  syncSimWatch();  // Sim status + Start button for the selected game
   firstRunSetup();  // Offer to add the launcher to exe.xml the first time
 });
 
@@ -409,7 +459,8 @@ function renderList() {
   $('#addgame').textContent = curGame ? 'Change game' : '+ Add game';
   $('#title').textContent = has ? label : 'No game yet';
   $('#sim').textContent = curGame || 'game.exe';  // Display current game executable
-  
+  renderSim();
+
   if (picking) {
     const picker = template('game-picker');
     const options = picker.querySelector('.game-options');
@@ -546,6 +597,7 @@ document.addEventListener('click', async e => {
     
     curGame = exe;
     cfg.lastGame = exe;
+    syncSimWatch();   // watch (and offer to start) the newly selected game
     sel = cfg.profiles[exe].apps.length ? 0 : -1;
     picking = false;
     touch();
