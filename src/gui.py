@@ -23,6 +23,7 @@ import subprocess
 import sys
 import threading
 import time
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import webview
@@ -192,6 +193,9 @@ class Api:
         self._watch_changed = threading.Event()   # set when the page switches games
         self._wake = threading.Event()            # wakes the monitor early
         self._launch_deadline = None   # set while a GUI start waits for the sim process
+        self._startup_shown = threading.Event()   # the first show (after page load) is done
+        self._show_requested = False   # a second launch asked to show during startup
+        self._startup_lock = threading.Lock()   # guards the two fields above
 
     def _setting(self, key, default=None):
         """Read one GUI setting (the page and this object share the same config)."""
@@ -474,8 +478,33 @@ class Api:
             if center:
                 self._center_window()
             log.info("GUI shown%s", " (centered)" if center else "")
+            self._nudge_repaint()
         except Exception as e:
             log.error("Error showing window: %s", e)
+
+    def _nudge_repaint(self):
+        """Resize by 1 px and back, shortly after showing. Makes WebView2 rebuild its
+        surface; works around the rare black/blank window after a hide/show."""
+        def nudge():
+            try:
+                w, h = self._window.width, self._window.height
+                self._window.resize(w + 1, h)
+                self._window.resize(w, h)
+            except Exception as e:
+                log.debug("Repaint nudge failed: %s", e)
+        t = threading.Timer(0.3, nudge)
+        t.daemon = True
+        t.start()
+
+    def _request_show(self):
+        """A second launch asked us to show. During startup (page not shown yet), wait
+        for it instead of showing a window WebView2 hasn't painted into."""
+        with self._startup_lock:
+            if not self._startup_shown.is_set():
+                self._show_requested = True
+                log.info("Show requested during startup; showing once the page is ready")
+                return
+        self._show_window(center=True)
 
     def start_monitor(self):
         """Start MSFS monitoring thread."""
@@ -547,6 +576,14 @@ def main():
     args = parser.parse_args()
     path = Path(args.config) if args.config else HERE / "apps.json"
 
+    # The GUI's own log (incl. pywebview / WebView2 errors), kept next to launcher.log.
+    # Without it, messages are lost whenever the GUI runs without a console.
+    gui_log = RotatingFileHandler(path.parent / "gui.log", maxBytes=500_000, backupCount=1,
+                                  encoding="utf-8")
+    gui_log.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-7s %(name)s: %(message)s"))
+    logging.getLogger().addHandler(gui_log)
+    log.info("GUI starting (pid %s): %s", os.getpid(), " ".join(sys.argv[1:]) or "no arguments")
+
     # Without --sim, watch the game that was last selected in the GUI
     sim_exe = args.sim
     if not sim_exe:
@@ -580,6 +617,32 @@ def main():
 
     first_show = threading.Lock()
     shown = []
+    page_loaded = threading.Event()
+    started_at = time.time()
+
+    def on_page_loaded():
+        if not page_loaded.is_set():
+            log.info("Page loaded after %.1fs", time.time() - started_at)
+        page_loaded.set()
+        show_first_time()
+
+    def on_load_timeout():
+        """The page hasn't loaded yet: reload it once, then show the window anyway."""
+        if not page_loaded.is_set():
+            log.warning("Page did not load within %ss; reloading it", SHOW_FALLBACK_SECONDS)
+            try:
+                api._window.load_url(str(UI_DIR / "index.html"))
+            except Exception as e:
+                log.error("Reloading the page failed: %s", e)
+
+            def check_again():
+                if not page_loaded.is_set():
+                    log.error("Page still not loaded %ss after the reload (WebView2 did not start). "
+                              "Close the GUI and start it again.", SHOW_FALLBACK_SECONDS)
+            later = threading.Timer(SHOW_FALLBACK_SECONDS, check_again)
+            later.daemon = True
+            later.start()
+        show_first_time()
 
     def show_first_time():
         """Runs once: when the page has loaded, or after a timeout as a fallback."""
@@ -587,8 +650,12 @@ def main():
             if shown:
                 return
             shown.append(True)
+        with api._startup_lock:   # from here on, show requests are handled directly
+            api._startup_shown.set()
+            show_requested = api._show_requested
         try:
-            if not args.minimized:
+            # A second launch during startup means "show me", even if started minimized
+            if not args.minimized or show_requested:
                 api._show_window(center=True)
             elif api._tray_icon:
                 log.info("GUI started hidden in system tray")
@@ -599,9 +666,9 @@ def main():
         except Exception as e:
             log.error("Error showing the window at startup: %s", e)
 
-    api._window.events.loaded += show_first_time
+    api._window.events.loaded += on_page_loaded
     # Fallback in case the page never reports "loaded" (it should within a second or two)
-    fallback = threading.Timer(SHOW_FALLBACK_SECONDS, show_first_time)
+    fallback = threading.Timer(SHOW_FALLBACK_SECONDS, on_load_timeout)
     fallback.daemon = True
     fallback.start()
 
@@ -639,7 +706,7 @@ def main():
 
     # A second launch of the GUI shows (and centers) this window instead of opening another
     threading.Thread(target=listen_for_show,
-                     args=(lock_socket, lambda: api._show_window(center=True)),
+                     args=(lock_socket, api._request_show),
                      daemon=True).start()
 
     # Start MSFS monitoring (doesn't block GUI, just monitors)
