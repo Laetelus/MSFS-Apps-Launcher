@@ -74,6 +74,15 @@ const renderLogs = async () => {
 // Get the current profile
 const profile = () => cfg.profiles[curGame] || null;
 
+// Insert an enabled app right after the last enabled one, so it stays above the
+// disabled apps at the bottom. Returns the index it was inserted at.
+const insertAfterEnabled = (apps, app) => {
+  let last = -1;
+  apps.forEach((x, i) => { if (val(x, 'enabled', true)) last = i; });
+  apps.splice(last + 1, 0, app);
+  return last + 1;
+};
+
 const showTemplate = (target, name) => {
   target.replaceChildren(template(name));
 };
@@ -510,10 +519,7 @@ document.addEventListener('click', async e => {
     // Keep enabled apps on top, disabled apps at the bottom.
     prof.apps.splice(+t.dataset.en, 1);         // take the app out of the list
     if (x.enabled) {
-      // Re-enabled: goes right after the last enabled app
-      let last = -1;
-      prof.apps.forEach((app, i) => { if (val(app, 'enabled', true)) last = i; });
-      prof.apps.splice(last + 1, 0, x);
+      insertAfterEnabled(prof.apps, x);         // Re-enabled: right after the last enabled app
     } else {
       prof.apps.push(x);                        // Disabled: goes to the very bottom
     }
@@ -573,8 +579,8 @@ document.addEventListener('click', async e => {
       return; 
     }
     const appName = p.split(/[\\/]/).pop().replace(/\.exe$/i, '');
-    prof.apps.push({ name: appName, path: p, delay: 0, closeOnExit: true });
-    sel = prof.apps.length - 1; 
+    // New apps are enabled, so they go after the last enabled app (above the disabled ones)
+    sel = insertAfterEnabled(prof.apps, { name: appName, path: p, delay: 0, closeOnExit: true });
     touch(); 
     await render(); 
     return;

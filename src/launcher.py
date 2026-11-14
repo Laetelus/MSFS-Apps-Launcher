@@ -16,7 +16,8 @@ import subprocess
 import sys
 import time
 import os
-import argparse  
+import argparse
+from logging.handlers import RotatingFileHandler
 from session_watch import start_session_watch
 from window_ctrl import start_window_watcher
 from pathlib import Path
@@ -37,10 +38,12 @@ CONFIG = Path(ARGS.config) if ARGS.config else HERE / "apps.json"
 LOG = HERE / "launcher.log"
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
+# Keep launcher.log small: roll over at 1 MB, keeping one old copy (launcher.log.1)
 logging.basicConfig(
-    filename=LOG,
     level=logging.INFO,
     format="%(asctime)s  %(message)s",
+    handlers=[RotatingFileHandler(LOG, maxBytes=1_000_000, backupCount=1,
+                                  encoding="utf-8")],
 )
 log = logging.getLogger("launcher")
 log.info("args: %s", sys.argv)

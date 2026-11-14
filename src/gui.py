@@ -13,8 +13,10 @@ Features:
     - Launch with launcher.py when MSFS starts, close when MSFS exits
 """
 import argparse
+import ctypes
 import logging
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -60,19 +62,63 @@ GUI_PORT = 54321  # Port used for GUI singleton detection
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
+SHOW_MESSAGE = b"show"
+WINDOW_BG = "#0a1628"          # matches --bg in ui/style.css (shown before the page paints)
+SHOW_FALLBACK_SECONDS = 8      # show the window even if the page never reports "loaded"
+LOG_LINE = re.compile(r"^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2},\d+)\s+(.*)$")
+LOG_TAIL_BYTES = 64 * 1024   # only the end of launcher.log is ever read
+
+
 def create_gui_lock_socket():
     """Create a socket listener to indicate this GUI instance is running.
     Returns the socket if successful, None if another instance is already running."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # Exclusive: on Windows SO_REUSEADDR would let a second instance bind the same port
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         sock.bind(('127.0.0.1', GUI_PORT))
-        sock.listen(1)
+        sock.listen(5)
         log.info("GUI lock socket created on port %d", GUI_PORT)
         return sock
     except OSError as e:
-        log.error("GUI lock socket failed (another instance may be running): %s", e)
+        log.info("GUI lock socket in use (another instance is running): %s", e)
         return None
+
+
+def signal_running_instance():
+    """Ask the GUI that is already running to show its window. True if it answered."""
+    try:
+        # Let the running instance take focus (we were just launched, so we may grant it)
+        ctypes.windll.user32.AllowSetForegroundWindow(-1)   # ASFW_ANY
+    except Exception:
+        pass
+    try:
+        with socket.create_connection(('127.0.0.1', GUI_PORT), timeout=2) as sock:
+            sock.sendall(SHOW_MESSAGE)
+        return True
+    except OSError as e:
+        log.error("Could not reach the running GUI: %s", e)
+        return False
+
+
+def listen_for_show(lock_socket, on_show):
+    """Background thread: a second launch connects and sends "show".
+    (launcher.py also connects, sending nothing, just to see if we are running.)"""
+    while True:
+        try:
+            conn, _ = lock_socket.accept()
+        except OSError:
+            return   # socket closed: the app is exiting
+        try:
+            conn.settimeout(1)
+            if conn.recv(16).strip() == SHOW_MESSAGE:
+                log.info("Another launch asked to show the GUI")
+                on_show()
+        except OSError:
+            pass
+        finally:
+            conn.close()
 
 
 def is_running(exe_name):
@@ -119,6 +165,7 @@ class Api:
         self._tray_icon = None
         self._sim_running = False
         self._quitting = False   # True when the app is really exiting (not just hiding to tray)
+        self._log_cache = (None, [])   # ((mtime, size), parsed entries) of launcher.log
 
     def _setting(self, key, default=None):
         """Read one GUI setting (the page and this object share the same config)."""
@@ -227,30 +274,43 @@ class Api:
         return Path(path).exists()
 
     def get_launcher_logs(self, lines=50):
-        """Read recent logs from launcher.log file."""
+        """Recent entries from launcher.log as [{date, time, msg}], oldest first.
+
+        The page polls this every second, so the file is only re-read when its
+        size or modified time changes, and only its last LOG_TAIL_BYTES are read.
+        Lines without a timestamp (e.g. traceback lines) belong to the entry above.
+        """
         log_file = self._path.parent / "launcher.log"
-        if not log_file.exists():
-            return []
-        
         try:
-            with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
-                all_lines = f.readlines()
-            
-            # Get the last N lines
-            recent_lines = all_lines[-lines:] if all_lines else []
-            
-            # Parse each line into timestamp and message
+            st = log_file.stat()
+        except OSError:
+            return []
+        key = (st.st_mtime_ns, st.st_size)
+        if self._log_cache[0] == key:
+            return self._log_cache[1][-lines:]
+
+        try:
+            with open(log_file, "rb") as f:
+                start = max(0, st.st_size - LOG_TAIL_BYTES)
+                f.seek(start)
+                text = f.read().decode("utf-8", errors="replace")
+            raw = text.splitlines()
+            if start > 0 and raw:
+                raw = raw[1:]   # first line was probably cut in half by the seek
+
             logs = []
-            for line in recent_lines:
-                line = line.rstrip('\n')
+            for line in raw:
                 if not line.strip():
                     continue
-                
-                # Format: "2026-10-12 17:40:29,531  message"
-                date, time_part, message = line.split(' ', 2)
-                logs.append({"date": date, "time": time_part, "msg": message})
-            
-            return logs
+                m = LOG_LINE.match(line)
+                if m:
+                    logs.append({"date": m[1], "time": m[2], "msg": m[3]})
+                elif logs:
+                    logs[-1]["msg"] += "\n" + line   # continuation of the previous entry
+                # else: continuation whose entry was cut off by the tail; skip it
+
+            self._log_cache = (key, logs)
+            return logs[-lines:]
         except Exception as e:
             return [{"date": "N/A", "time": "ERROR", "msg": str(e)}]
 
@@ -288,6 +348,36 @@ class Api:
         if self._window:
             self._window.destroy()
 
+    def _center_window(self):
+        """Move the window to the middle of the screen it is on (primary as fallback)."""
+        w = self._window
+        screens = webview.screens or []
+        if not screens:
+            return
+        primary = next((s for s in screens if s.x == 0 and s.y == 0), screens[0])
+        screen = next((s for s in screens
+                       if s.x <= w.x < s.x + s.width and s.y <= w.y < s.y + s.height),
+                      primary)
+        x = screen.x + max(0, (screen.width - w.width) // 2)
+        y = screen.y + max(0, (screen.height - w.height) // 2)
+        w.move(x, y)
+
+    def _show_window(self, center=False):
+        """Bring the window back from the tray / taskbar, optionally centered."""
+        if not self._window:
+            return
+        try:
+            self._window.show()
+            try:
+                self._window.restore()   # in case it was minimized
+            except Exception:
+                pass
+            if center:
+                self._center_window()
+            log.info("GUI shown%s", " (centered)" if center else "")
+        except Exception as e:
+            log.error("Error showing window: %s", e)
+
     def start_monitor(self):
         """Start MSFS monitoring thread."""
         if not self._monitor_thread or not self._monitor_thread.is_alive():
@@ -308,17 +398,7 @@ class Api:
 
         def show_window(icon=None, item=None):
             """Show window from tray menu."""
-            try:
-                if self._window:
-                    self._window.show()
-                    # Restore from minimized state if needed
-                    try:
-                        self._window.restore()
-                    except Exception:
-                        pass
-                    log.info("GUI shown from tray")
-            except Exception as e:
-                log.error("Error showing window: %s", e)
+            self._show_window()
 
         def quit_app(icon=None, item=None):
             """Quit app from tray menu."""
@@ -376,42 +456,55 @@ def main():
         except Exception:
             sim_exe = "FlightSimulator.exe"
 
-    api = Api(path, sim_exe=sim_exe)
-
-    # Try to create lock socket to indicate this instance is running
+    # Only one GUI at a time: if one is already running, bring it forward and exit
     lock_socket = create_gui_lock_socket()
     if not lock_socket:
-        log.error("Another GUI instance is already running. Exiting.")
-        print("Error: Another GUI instance is already running.")
+        if signal_running_instance():
+            log.info("GUI already running; asked it to show its window. Exiting.")
+        else:
+            log.error("Port %d is in use but the running GUI did not answer. Exiting.", GUI_PORT)
         return
 
-    # Create window
+    api = Api(path, sim_exe=sim_exe)
+
+    # Create the window hidden: it is only shown (centered) once the page has rendered,
+    # so you never see the blank/black frame WebView2 paints while it starts up.
     api._window = webview.create_window(
         "MSFS App Launcher", str(UI_DIR / "index.html"),
-        js_api=api, width=1160, height=720, min_size=(1160, 720))
-    
+        js_api=api, width=1160, height=720, min_size=(1160, 720),
+        hidden=True, background_color=WINDOW_BG)
+
     # Setup tray icon first (if available)
     if HAS_SYSTRAY:
         api._setup_tray_icon()
-        time.sleep(0.5)  # Give tray icon time to initialize
-    
-    # Start hidden/minimized if requested (delay to ensure window is ready)
-    if args.minimized:
-        def hide_to_tray():
-            try:
-                time.sleep(1)  # Wait for webview to fully initialize
-                if api._tray_icon:
-                    api._window.hide()
-                    log.info("GUI started hidden in system tray")
-                else:
-                    api._window.minimize()
-                    log.info("GUI started minimized to taskbar")
-            except Exception as e:
-                log.error("Error starting minimized: %s", e)
-        
-        hide_thread = threading.Thread(target=hide_to_tray, daemon=True)
-        hide_thread.start()
-    
+
+    first_show = threading.Lock()
+    shown = []
+
+    def show_first_time():
+        """Runs once: when the page has loaded, or after a timeout as a fallback."""
+        with first_show:
+            if shown:
+                return
+            shown.append(True)
+        try:
+            if not args.minimized:
+                api._show_window(center=True)
+            elif api._tray_icon:
+                log.info("GUI started hidden in system tray")
+            else:
+                api._show_window(center=True)
+                api._window.minimize()
+                log.info("GUI started minimized to taskbar")
+        except Exception as e:
+            log.error("Error showing the window at startup: %s", e)
+
+    api._window.events.loaded += show_first_time
+    # Fallback in case the page never reports "loaded" (it should within a second or two)
+    fallback = threading.Timer(SHOW_FALLBACK_SECONDS, show_first_time)
+    fallback.daemon = True
+    fallback.start()
+
     # Setup event handlers
     def on_minimized(window):
         """Minimize button: hide to tray or stay on the taskbar, per settings."""
@@ -443,6 +536,11 @@ def main():
     
     api._window.events.closing += on_closing
     api._window.events.minimized += on_minimized
+
+    # A second launch of the GUI shows (and centers) this window instead of opening another
+    threading.Thread(target=listen_for_show,
+                     args=(lock_socket, lambda: api._show_window(center=True)),
+                     daemon=True).start()
 
     # Start MSFS monitoring (doesn't block GUI, just monitors)
     api.start_monitor()

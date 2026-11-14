@@ -712,6 +712,11 @@ h1 {
   display: none;
 }
 
+/* No entries yet: don't draw an empty card under the header */
+.logs-content:empty {
+  display: none;
+}
+
 /* Sidebar header boxes (Activity Log, Settings) share one card look */
 .logs-header,
 .side-btn {
@@ -872,6 +877,7 @@ h1 {
   flex: 1;
   min-width: 0;
   word-break: break-word;
+  white-space: pre-wrap;   /* keep line breaks of multi-line entries (tracebacks) */
 }
 
 /* ===== SETTINGS PAGE (standalone, replaces main area + details panel) ===== */
