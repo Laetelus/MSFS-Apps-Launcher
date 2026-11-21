@@ -7,10 +7,6 @@ The window is an HTML page (ui/index.html) talking to the Api class below.
 It edits the same apps.json the launcher reads; changes apply the next time
 the sim starts.
 
-Features:
-    - Minimizes to system tray (closes window to tray instead of taskbar)
-    - Monitors MSFS process; disables/closes GUI if MSFS is not running
-    - Launch with launcher.py when MSFS starts, close when MSFS exits
 """
 import argparse
 import ctypes
@@ -67,7 +63,8 @@ NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 SHOW_MESSAGE = b"show"
 LAUNCH_APPEAR_SECONDS = 30    # after Start MSFS, give up if the sim process never appears
 WINDOW_BG = "#0a1628"          # matches --bg in ui/style.css (shown before the page paints)
-SHOW_FALLBACK_SECONDS = 8      # show the window even if the page never reports "loaded"
+NOTIFY_DELAY_SECONDS = 5       # tray toast waits this long so it doesn't collide with other apps' toasts
+SHOW_FALLBACK_SECONDS = 8     # show the window even if the page never reports "loaded"
 LOG_LINE = re.compile(r"^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2},\d+)\s+(.*)$")
 LOG_TAIL_BYTES = 64 * 1024   # only the end of launcher.log is ever read
 
@@ -192,6 +189,8 @@ class Api:
         self._running = True
         self._tray_icon = None
         self._sim_running = False
+        self._window_visible = False   # False while hidden in the tray
+        self._tray_ready = threading.Event()   # set once the tray icon is visible
         self._quitting = False   # True when the app is really exiting (not just hiding to tray)
         self._log_cache = (None, [])   # ((mtime, size), parsed entries) of launcher.log
         self._watch_changed = threading.Event()   # set when the page switches games
@@ -306,6 +305,29 @@ class Api:
         if not path:
             return False
         return Path(path).exists()
+
+    def open_app_folder(self, path):
+        """Open the app's folder in Explorer (the nearest folder that still exists, when
+        the app was moved or uninstalled). The exe is selected if it is still there."""
+        if not path:
+            return {"ok": False, "error": "No path set for this app."}
+        try:
+            p = Path(path)
+            if p.is_file():
+                # One string, quotes only around the path: Explorer misreads the
+                # list form ("/select,E:\My Folder\x.exe" quoted as a whole) when
+                # the path has spaces and opens a default folder instead.
+                subprocess.Popen(f'explorer /select,"{p}"')
+                return {"ok": True, "opened": str(p.parent)}
+            folder = p.parent
+            while not folder.is_dir():
+                if folder == folder.parent:
+                    return {"ok": False, "error": "None of that folder exists anymore."}
+                folder = folder.parent
+            os.startfile(str(folder))
+            return {"ok": True, "opened": str(folder), "exact": folder == p.parent}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
 
     def get_launcher_logs(self, lines=50):
         """Recent entries from launcher.log as [{date, time, msg}], oldest first.
@@ -431,9 +453,13 @@ class Api:
                 if not sim_running and prev_running:  # MSFS just stopped
                     log.info("MSFS stopped")
                     if self._setting("closeWithMSFS", False):
-                        log.info("Closing GUI because MSFS exited")
-                        self._close_app()
-                        return
+                        if self._window_visible:
+                            # The user has the window open: never close it under them
+                            log.info("MSFS exited; GUI is open, keeping it")
+                        else:
+                            log.info("Closing GUI because MSFS exited")
+                            self._close_app()
+                            return
                 elif sim_running and not prev_running:  # MSFS just started
                     log.info("MSFS started")
                 prev_running = sim_running
@@ -442,6 +468,25 @@ class Api:
             # Wakes early when the page switches games or presses Start.
             self._wake.wait(0.5 if self._launch_deadline is not None else 2)
             self._wake.clear()
+
+    def _notify(self, message):
+        """Windows toast from the tray icon (no-op without a tray). Waits (off the
+        calling thread) until the icon is actually in the tray; never takes focus."""
+        if not self._tray_icon:
+            return
+
+        def send():
+            if not self._tray_ready.wait(10):
+                log.warning("Tray icon not ready; skipped notification")
+                return
+            # Other apps (e.g. TouchdownGrader) toast at the same moment when they start
+            # with the sim, and Windows drops overlapping balloons. Let theirs go first.
+            time.sleep(NOTIFY_DELAY_SECONDS)
+            try:
+                self._tray_icon.notify(message, "MSFS App Launcher")
+            except Exception as e:
+                log.warning("Tray notification failed: %s", e)
+        threading.Thread(target=send, daemon=True).start()
 
     def _close_app(self):
         """Really exit the application (bypasses hide-to-tray)."""
@@ -475,6 +520,7 @@ class Api:
             return
         try:
             self._window.show()
+            self._window_visible = True
             try:
                 self._window.restore()   # in case it was minimized
             except Exception:
@@ -564,7 +610,11 @@ class Api:
             
             log.info("Tray icon created, starting in background thread...")
             # Run tray icon in background thread
-            tray_thread = threading.Thread(target=self._tray_icon.run, daemon=True)
+            def tray_ready(icon):
+                icon.visible = True
+                self._tray_ready.set()
+            tray_thread = threading.Thread(
+                target=lambda: self._tray_icon.run(setup=tray_ready), daemon=True)
             tray_thread.start()
             log.info("Tray icon thread started successfully")
         except Exception as e:
@@ -664,6 +714,7 @@ def main():
                 api._show_window(center=True)
             elif api._tray_icon:
                 log.info("GUI started hidden in system tray")
+                api._notify("Running MSFS Apps Launcher in the system tray.")
             else:
                 api._show_window(center=True)
                 api._window.minimize()
@@ -682,6 +733,7 @@ def main():
         """Minimize button: hide to tray or stay on the taskbar, per settings."""
         if api._tray_icon and api._setting("minimizeButtonAction", "tray") == "tray":
             window.hide()
+            api._window_visible = False
             log.info("GUI minimized to system tray")
         # "taskbar": the window is already minimized, nothing more to do
 
@@ -690,6 +742,7 @@ def main():
         if (not api._quitting and api._tray_icon
                 and api._setting("closeButtonAction", "tray") == "tray"):
             api._window.hide()
+            api._window_visible = False
             log.info("GUI hidden to system tray (close button)")
             return False   # cancel the close, keep running in the tray
         api._running = False

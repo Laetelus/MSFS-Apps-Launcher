@@ -483,6 +483,6 @@ def open_folder(folder):
     """Open the folder in Explorer, selecting exe.xml when it exists."""
     path = exe_xml_path(folder)
     if path.exists():
-        subprocess.Popen(["explorer", f"/select,{path}"])
+        subprocess.Popen(f'explorer /select,"{path}"')   # one string: see gui.open_app_folder
     else:
         os.startfile(str(folder))

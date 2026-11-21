@@ -141,11 +141,33 @@ async function checkAllPaths() {
   const prof = profile();
   if (!prof || !prof.apps) return;
   
+  // Re-check every time: an app can be uninstalled/moved while the GUI is open
   for (const app of prof.apps) {
-    if (app.path && !(app.path in pathValidity)) {
+    if (app.path) {
       pathValidity[app.path] = await pywebview.api.check_path_exists(app.path);
     }
   }
+}
+
+// Keep the "path missing" marking current without re-rendering the list
+async function refreshPathMarks() {
+  const prof = profile();
+  if (!prof || !prof.apps) return;
+  await checkAllPaths();
+  document.querySelectorAll('#list .card').forEach(card => {
+    const a = prof.apps[+card.dataset.i];
+    if (a) markInvalid(card, a);
+  });
+  const warn = document.querySelector('#det .pwarn');
+  const cur = prof.apps[sel];
+  if (warn && cur) warn.hidden = !!pathValidity[cur.path];
+}
+
+// Red marking + hover tooltip for an app whose executable no longer exists
+function markInvalid(card, a) {
+  const bad = !pathValidity[a.path];
+  card.classList.toggle('invalid', bad);
+  card.title = bad ? `Can't find this executable:\n${a.path || '(no path set)'}\nIt may have been uninstalled or moved.` : '';
 }
 
 /* ===== INITIALIZATION ===== */
@@ -166,7 +188,9 @@ window.addEventListener('pywebviewready', async () => {
   
   // Refresh logs every 1 second
   setInterval(renderLogs, 1000);
-  
+  setInterval(refreshPathMarks, 3000);   // notice uninstalled / moved apps
+  window.addEventListener('focus', refreshPathMarks);
+
   render();  // Display everything
   syncSimWatch();  // Sim status + Start button for the selected game
   firstRunSetup();  // Offer to add the launcher to exe.xml the first time
@@ -497,7 +521,7 @@ function renderList() {
     card.draggable = enabled;
     card.classList.toggle('sel', i === sel);
     card.classList.toggle('off', !enabled);
-    card.classList.toggle('invalid', !pathValidity[a.path]);
+    markInvalid(card, a);
     card.querySelector('.tile').textContent = (a.name || '?')[0].toUpperCase();
     card.querySelector('.nm b').textContent = a.name || '';
     const path = card.querySelector('.nm span');
@@ -529,6 +553,7 @@ function renderDetail() {
   const path = detail.querySelector('.path');
   path.textContent = a.path || '';
   path.title = a.path || '';
+  detail.querySelector('.pwarn').hidden = !!pathValidity[a.path];
 
   detail.querySelector('[data-v="sim"]').classList.toggle('on', !session);
   detail.querySelector('[data-v="session"]').classList.toggle('on', session);
@@ -637,8 +662,14 @@ document.addEventListener('click', async e => {
     await render(); 
     return;
   }
+  // Open the app's folder (nearest existing one if it was uninstalled)
+  if (t.id === 'open-folder') {
+    const r = await pywebview.api.open_app_folder(a.path);
+    if (!r.ok) say(r.error);
+    return;
+  }
   // Remove button - delete app
-  if (t.id === 'remove') { 
+  if (t.id === 'remove') {
     prof.apps.splice(sel, 1); 
     sel = Math.min(sel, prof.apps.length - 1); 
     touch(); 

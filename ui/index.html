@@ -117,6 +117,10 @@
       <span class="path"></span>
     </div>
   </div>
+  <div class="pwarn" hidden>
+    <b>Can't find this executable</b>
+    <span>It may have been uninstalled, moved or renamed.</span>
+  </div>
   <div class="fl">
     <span class="lbl">Start</span>
     <div class="seg">
@@ -149,7 +153,10 @@
     <label class="lbl" for="f-args">Launch arguments</label>
     <input class="inp" id="f-args" placeholder="Optional" spellcheck="false">
   </div>
-  <div class="row" style="margin-top:auto"><button class="sec dng" id="remove" style="flex:1">Remove</button></div>
+  <div class="row" style="margin-top:auto">
+    <button class="sec" id="open-folder" style="flex:1">Open folder</button>
+    <button class="sec dng" id="remove" style="flex:1">Remove</button>
+  </div>
 </template>
 
 <template id="tpl-settings">
@@ -169,7 +176,7 @@
         <button class="tog" data-setting="launchWithMSFS" aria-label="Launch with MSFS" aria-pressed="false"><i></i></button>
       </div>
       <div class="srow">
-        <div class="stxt"><b>Close with MSFS</b><span>Close this app when the sim exits.</span></div>
+        <div class="stxt"><b>Close with MSFS</b><span>Close this app when the sim exits, unless the window is open.</span></div>
         <button class="tog" data-setting="closeWithMSFS" aria-label="Close with MSFS" aria-pressed="false"><i></i></button>
       </div>
       <div class="srow">
